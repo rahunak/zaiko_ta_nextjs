@@ -60,7 +60,7 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagra
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-8 text-xs" style={{ color: "#5A4E52" }}>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <span>© 2024 Зайко Татьяна. Все права защищены.</span>
+            <span>© 2026 Зайко Татьяна. Все права защищены.</span>
             <span style={{ color: "#4A3E42" }}>УНП KE8812226</span>
           </div>
           <a href="#" className="hover:text-white transition-all duration-200 hover:underline">Политика конфиденциальности</a>

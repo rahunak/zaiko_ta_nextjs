@@ -22,8 +22,8 @@ export function Reviews({ reviews }: ReviewsProps) {
           <p className="text-xs uppercase tracking-widest mb-3 font-medium" style={{ color: "#B8748A" }}>Отзывы клиентов</p>
           <h2 className="font-display text-3xl sm:text-4xl font-500 mb-2" style={{ color: "#1A1618" }}>Что говорят клиентки</h2>
           <div className="flex items-center justify-center gap-2 mt-3">
-            <StarRating count={5} />
-            <span className="text-sm font-medium" style={{ color: "#1A1618" }}>5.0</span>
+            <StarRating count={4} />
+            <span className="text-sm font-medium" style={{ color: "#1A1618" }}>4.4</span>
             <span className="text-sm" style={{ color: "#8B7E7A" }}>на Яндекс Картах</span>
           </div>
         </div>

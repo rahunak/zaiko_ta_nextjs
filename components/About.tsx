@@ -12,7 +12,7 @@ export function About({ dikidiUrl }: AboutProps) {
           <div className="relative">
             <div className="rounded-3xl overflow-hidden" style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
               <img
-                src="./images/ABOUT.webp"
+                src="./images/about_me.webp"
                 alt="Зайко Татьяна - мастер по ресницам и бровям"
                 className="w-full object-cover"
                 style={{ height: "500px" }}
@@ -41,7 +41,7 @@ export function About({ dikidiUrl }: AboutProps) {
 
             {/* Certs */}
             <div className="grid grid-cols-2 gap-3 mb-8">
-              {["Сертификат ламинирование ресниц", "Сертификат долговременная укладка", "Повышение квалификации 2023", "Обучение у топ-мастеров"].map((cert, i) => (
+              {["Сертификат ламинирование ресниц", "Сертификат долговременная укладка", "Повышение квалификации 2025", "Обучение у топ-мастеров"].map((cert, i) => (
                 <div key={i} className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
                   <svg className="w-4 h-4 shrink-0" style={{ color: "#C9956A" }} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                   <span className="text-xs leading-snug" style={{ color: "#E8DCDA" }}>{cert}</span>

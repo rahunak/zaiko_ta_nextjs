@@ -681,13 +681,15 @@ export default function Home() {
                 <span>2 этаж, кабинет 7</span>
                 <a href={`tel:${PHONE}`} className="hover:text-white transition-all duration-200 hover:translate-x-1" style={{ color: "#C9956A" }}>{PHONE_DISPLAY}</a>
                 <div className="flex items-center gap-3 mt-2">
-                  {[
-                    [TELEGRAM_URL, "TG"],
-                    [WHATSAPP_URL, "WA"],
-                    [INSTAGRAM_URL, "IG"],
-                  ].map(([href, label]) => (
-                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 hover:scale-110 hover:bg-white hover:text-black" style={{ border: "1px solid rgba(255,255,255,0.2)", color: "#E8DCDA" }}>{label}</a>
-                  ))}
+                  <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <Image src="/images/telegram.svg" alt="Telegram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  </a>
+                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <Image src="/images/whatsapp.svg" alt="WhatsApp" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  </a>
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <Image src="/images/instagram.svg" alt="Instagram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  </a>
                 </div>
               </div>
             </div>

@@ -3,65 +3,64 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 
-const DIKIDI_URL = "https://dikidi.net/1784388"
+const DIKIDI_URL = "https://dikidi.net/1784388?p=1.pi-ssm"
 const PHONE = "+375256827229"
 const PHONE_DISPLAY = "+375 (25) 68-27-229"
 const WHATSAPP_URL = "https://wa.me/375256827229"
 const VIBER_URL = "viber://chat?number=%2B375256827229"
-const TELEGRAM_URL = "https://t.me/zaiko_tatyana"
-const INSTAGRAM_URL = "https://instagram.com/zaiko_tatyana"
+const TELEGRAM_URL = "https://t.me/Lapushka66"
+const INSTAGRAM_URL = "https://instagram.com/zaiko_ta"
 
 const services = [
   { name: "Ламинирование ресниц", price: "45 BYN", duration: "90 мин", desc: "Стойкий эффект завитых и ухоженных ресниц до 6–8 недель" },
   { name: "Долговременная укладка бровей", price: "35 BYN", duration: "60 мин", desc: "Аккуратные, оформленные брови с укладкой на 4–6 недель" },
   { name: "Окрашивание и коррекция бровей", price: "30 BYN", duration: "45 мин", desc: "Придание формы и насыщенного цвета бровям" },
   { name: "Коррекция бровей", price: "20 BYN", duration: "30 мин", desc: "Придание бровям идеальной формы под тип лица" },
-  { name: "Окрашивание ресниц", price: "10 BYN", duration: "20 мин", desc: "Насыщенный цвет ресниц — быстро и надолго" },
+  { name: "Окрашивание ресниц", price: "10 BYN", duration: "20 мин", desc: "Насыщенный цвет ресниц - быстро и надолго" },
 ]
 
 const benefits = [
   { icon: "🌿", title: "Гипоаллергенные составы", desc: "Только сертифицированные безопасные материалы" },
   { icon: "⭐", title: "5+ лет опыта", desc: "Более 500 довольных клиенток за годы работы" },
-  { icon: "💎", title: "Индивидуальный подход", desc: "Каждая процедура — под особенности ваших ресниц и бровей" },
-  { icon: "📍", title: "Центр Крупок", desc: "Удобное расположение — ул. Советская, 49, 2 этаж" },
+  { icon: "💎", title: "Индивидуальный подход", desc: "Каждая процедура - под особенности ваших ресниц и бровей" },
+  { icon: "📍", title: "Центр Крупок", desc: "Удобное расположение - ул. Советская, 49, 2 этаж" },
   { icon: "🏆", title: "Рейтинг 4.4★", desc: "Высокая оценка на Яндексе от реальных клиентов" },
 ]
 
 const reviews = [
   {
-    name: "Анастасия К.",
-    date: "Март 2024",
+    name: "Алеся Шараева",
+    date: "2024",
     rating: 5,
-    text: "Делала ламинирование ресниц у Татьяны — просто восторг! Ресницы смотрятся шикарно, без туши вообще не нужна. Мастер очень аккуратный, всё объяснила про уход. Однозначно вернусь!",
+    text: "Наконец-то нашла своего мастера! 👌 Всё делает очень аккуратно, красиво и со вкусом — результат всегда просто огонь! 🔥 Брови идеальной формы, ресницы естественные и выразительные ✨. Мастер вежливая и коммуникабельная, всегда всё объяснит. Хожу только к ней и всем советую! 💫",
     avatar: "А",
+    url: "https://yandex.by/maps/org/17028481096/reviews?reviews%5BpublicId%5D=3553pxg9wjbbqqegvx5ddrc774",
+    datePublished: "2024-08-15",
   },
   {
-    name: "Виктория М.",
-    date: "Февраль 2024",
+    name: "Анастасия Шолохман",
+    date: "2024",
     rating: 5,
-    text: "Наконец-то нашла своего мастера по бровям! Татьяна сделала долговременную укладку — брови выглядят идеально с утра и до вечера. Кабинет чистый, уютный. Рекомендую всем!",
-    avatar: "В",
+    text: "Татьяна, мастерство, которое вы проявили в работе с моими бровями и ресничками просто поразительно. Спасибо за все, обязательно вернусь и приведу с собой подруг. Таким мастером нужно делиться, ведь вас так сложно найти.🙂👍",
+    avatar: "А",
+    url: "https://yandex.by/maps/org/17028481096/reviews?reviews%5BpublicId%5D=593yvqgphutewdmx5rzzr4vde4",
+    datePublished: "2024-07-22",
   },
   {
-    name: "Марина Д.",
-    date: "Январь 2024",
-    rating: 4,
-    text: "Хорошая работа, Татьяна очень профессиональна. Делала окрашивание и коррекцию бровей — результат порадовал. Единственное — запись чуть подождала, но оно того стоило.",
-    avatar: "М",
-  },
-  {
-    name: "Ольга Т.",
-    date: "Декабрь 2023",
+    name: "qwliiin",
+    date: "2024",
     rating: 5,
-    text: "Лучший мастер в Крупках! Ламинирование ресниц держится уже 7 недель, выгляжу ухоженно каждый день. Цены приятные, атмосфера комфортная. Спасибо, Татьяна!",
-    avatar: "О",
+    text: "рекомендую всем Татьяну как мастера. Она легко находит подход к каждому клиенту, учитывает все пожелания и создает неимоверную красоту!!",
+    avatar: "Q",
+    url: "https://yandex.by/maps/org/17028481096/reviews?reviews%5BpublicId%5D=3ckkfv09cfcyw41ez9yt3j1624",
+    datePublished: "2024-06-10",
   },
 ]
 
 const faqs = [
   {
     q: "Сколько держится эффект ламинирования?",
-    a: "Ламинирование ресниц сохраняется 6–8 недель, долговременная укладка бровей — 4–6 недель. Срок зависит от особенностей волосяного покрова и правильности ухода после процедуры.",
+    a: "Ламинирование ресниц сохраняется 6–8 недель, долговременная укладка бровей - 4–6 недель. Срок зависит от особенностей волосяного покрова и правильности ухода после процедуры.",
   },
   {
     q: "Можно ли мочить ресницы после процедуры?",
@@ -73,17 +72,17 @@ const faqs = [
   },
   {
     q: "В чём отличие ламинирования от наращивания ресниц?",
-    a: "Ламинирование — это уход за своими ресницами: состав придаёт им изогнутую форму, объём и блеск, питает и укрепляет. Наращивание — это прикрепление искусственных волосков. Ламинирование выглядит естественно и не требует выравнивания.",
+    a: "Ламинирование - это уход за своими ресницами: состав придаёт им изогнутую форму, объём и блеск, питает и укрепляет. Наращивание - это прикрепление искусственных волосков. Ламинирование выглядит естественно и не требует выравнивания.",
   },
 ]
 
 const galleryImages = [
-  { src: "https://images.unsplash.com/photo-1639629509821-c54cdd984227?w=480&h=600&fit=crop&auto=format", alt: "Ламинирование ресниц — результат", tall: true },
-  { src: "https://images.unsplash.com/photo-1548902378-2ec44c906391?w=480&h=380&fit=crop&auto=format", alt: "Оформление бровей — до и после", tall: false },
-  { src: "https://images.unsplash.com/photo-1542833807-ad5af0977050?w=480&h=380&fit=crop&auto=format", alt: "Укладка бровей — результат", tall: false },
-  { src: "https://images.unsplash.com/photo-1516220362602-dba5272034e7?w=480&h=580&fit=crop&auto=format", alt: "Ламинирование ресниц крупный план", tall: true },
-  { src: "https://images.unsplash.com/photo-1547078902-2911dfaaa53a?w=480&h=400&fit=crop&auto=format", alt: "Идеальные брови после процедуры", tall: false },
-  { src: "https://images.unsplash.com/photo-1589710751893-f9a6770ad71b?w=480&h=580&fit=crop&auto=format", alt: "Процесс ламинирования ресниц", tall: true },
+  { src: "./images/work_3.webp", alt: "Ламинирование ресниц - результат", tall: true },
+  { src: "./images/eye_6.webp", alt: "Оформление бровей - до и после", tall: false },
+  { src: "./images/eye_0.webp", alt: "Укладка бровей - результат", tall: false },
+  { src: "./images/work_5.webp", alt: "Ламинирование ресниц крупный план", tall: true },
+  { src: "./images/work_4.webp", alt: "Идеальные брови после процедуры", tall: false },
+  { src: "./images/girl_1.webp", alt: "Процесс ламинирования ресниц", tall: true },
 ]
 
 function StarRating({ count }: { count: number }) {
@@ -109,13 +108,64 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  // Structured data for reviews
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "BeautySalon",
+    "name": "zaiko_ta - Ламинирование ресниц и бровей",
+    "image": "https://zaiko-ta.by/images/ZT.svg",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "ул. Советская, дом 49, 2 этаж, кабинет 7",
+      "addressLocality": "Крупки",
+      "addressRegion": "Минская область",
+      "postalCode": "223410",
+      "addressCountry": "BY"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "5.0",
+      "reviewCount": "3",
+      "bestRating": "5",
+      "worstRating": "1"
+    },
+    "review": reviews.map((review) => ({
+      "@type": "Review",
+      "author": {
+        "@type": "Person",
+        "name": review.name
+      },
+      "datePublished": review.datePublished,
+      "inLanguage": "ru",
+      "reviewBody": review.text,
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": review.rating.toString(),
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "itemReviewed": {
+        "@type": "BeautySalon",
+        "name": "zaiko_ta"
+      },
+      "url": review.url
+    }))
+  }
+
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
     setMenuOpen(false)
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#FAF6F2", color: "#1A1618" }}>
+    <>
+      {/* Schema.org JSON-LD for reviews */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      <div className="min-h-screen" style={{ backgroundColor: "#FAF6F2", color: "#1A1618" }}>
 
       {/* ── STICKY HEADER ── */}
       <header
@@ -139,7 +189,7 @@ export default function Home() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm">
             {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
-              <button key={id} onClick={() => scrollTo(id)} className="transition-colors hover:opacity-70" style={{ color: "#8B7E7A" }}>{label}</button>
+              <button key={id} onClick={() => scrollTo(id)} className="transition-all duration-200 hover:opacity-70 hover:scale-105" style={{ color: "#8B7E7A" }}>{label}</button>
             ))}
           </nav>
 
@@ -181,7 +231,7 @@ export default function Home() {
         {/* Background image */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1674049406467-824ea37c7184?w=1400&h=900&fit=crop&auto=format"
+            src="/images/work_1.webp"
             alt=""
             className="w-full h-full object-cover"
             style={{ filter: "brightness(0.38)" }}
@@ -286,7 +336,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <p className="text-xs uppercase tracking-widest mb-3 font-medium" style={{ color: "#B8748A" }}>Портфолио</p>
             <h2 className="font-display text-3xl sm:text-4xl font-500 mb-2" style={{ color: "#1A1618" }}>Реальные результаты</h2>
-            <p className="text-sm" style={{ color: "#8B7E7A" }}>Работы из моего Instagram — без фильтров и ретуши</p>
+            <p className="text-sm" style={{ color: "#8B7E7A" }}>Работы из моего Instagram - без фильтров и ретуши</p>
           </div>
 
           {/* Masonry grid */}
@@ -360,8 +410,8 @@ export default function Home() {
             <div className="relative">
               <div className="rounded-3xl overflow-hidden" style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
                 <img
-                  src="https://images.unsplash.com/photo-1595550912256-b24059bb08e8?w=680&h=800&fit=crop&auto=format"
-                  alt="Зайко Татьяна — мастер по ресницам и бровям"
+                  src="./images/ABOUT.webp"
+                  alt="Зайко Татьяна - мастер по ресницам и бровям"
                   className="w-full object-cover"
                   style={{ height: "500px" }}
                 />
@@ -378,13 +428,13 @@ export default function Home() {
             <div>
               <p className="text-xs uppercase tracking-widest mb-4 font-medium" style={{ color: "#C9956A" }}>Обо мне</p>
               <h2 className="font-display text-3xl sm:text-4xl font-500 mb-5 leading-tight" style={{ color: "#FAF6F2" }}>
-                Зайко Татьяна —<br />мастер красоты
+                Зайко Татьяна -<br />мастер красоты
               </h2>
               <p className="text-base leading-relaxed mb-5" style={{ color: "#CCC0BE" }}>
-                Более 5 лет я помогаю женщинам Крупок выглядеть ухоженно каждый день — без лишних усилий. Специализируюсь на ламинировании ресниц и долговременной укладке бровей: процедурах, которые подчёркивают натуральную красоту.
+                Более 5 лет я помогаю женщинам Крупок выглядеть ухоженно каждый день - без лишних усилий. Специализируюсь на ламинировании ресниц и долговременной укладке бровей: процедурах, которые подчёркивают натуральную красоту.
               </p>
               <p className="text-base leading-relaxed mb-8" style={{ color: "#CCC0BE" }}>
-                Работаю только с проверенными гипоаллергенными составами. Принимаю в уютном кабинете в центре города — ул. Советская, 49, 2 этаж, каб. 7.
+                Работаю только с проверенными гипоаллергенными составами. Принимаю в уютном кабинете в центре города - ул. Советская, 49, 2 этаж, каб. 7.
               </p>
 
               {/* Certs */}
@@ -425,7 +475,7 @@ export default function Home() {
           </div>
 
           {/* Carousel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {reviews.map((rev, i) => (
               <div
                 key={i}
@@ -443,10 +493,15 @@ export default function Home() {
                 </div>
                 <StarRating count={rev.rating} />
                 <p className="text-sm leading-relaxed flex-1" style={{ color: "#3D3338" }}>{rev.text}</p>
-                <div className="flex items-center gap-1 pt-1">
+                <a
+                  href={rev.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 pt-1 hover:opacity-70 transition-opacity"
+                >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
-                  <span className="text-xs" style={{ color: "#8B7E7A" }}>Яндекс Карты</span>
-                </div>
+                  <span className="text-xs" style={{ color: "#8B7E7A" }}>Источник на Яндекс.Картах</span>
+                </a>
               </div>
             ))}
           </div>
@@ -506,7 +561,7 @@ export default function Home() {
                 width="100%"
                 height="100%"
                 frameBorder="0"
-                title="Карта — Зайко Татьяна, Крупки"
+                title="Карта - Зайко Татьяна, Крупки"
                 allowFullScreen
               />
             </div>
@@ -542,7 +597,7 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="font-medium text-sm mb-1" style={{ color: "#1A1618" }}>Часы работы</div>
-                  <div className="text-sm" style={{ color: "#5A4E52" }}>Пн–Вс: 9:00 — 19:00<br /></div>
+                  <div className="text-sm" style={{ color: "#5A4E52" }}>Пн–Вс: 9:00 - 19:00<br /></div>
                 </div>
               </div>
 
@@ -578,13 +633,13 @@ export default function Home() {
                   Записаться через DIKIDI
                 </a>
                 <a
-                  href={WHATSAPP_URL}
+                  href={VIBER_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3.5 rounded-full text-sm font-medium text-center transition-all hover:opacity-90"
                   style={{ border: "1.5px solid #B8748A", color: "#B8748A" }}
                 >
-                  Написать в WhatsApp
+                  Написать в Viber
                 </a>
               </div>
             </div>
@@ -613,7 +668,7 @@ export default function Home() {
               <div className="font-medium text-sm mb-4" style={{ color: "#FAF6F2" }}>Навигация</div>
               <div className="flex flex-col gap-2">
                 {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
-                  <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-colors hover:text-white" style={{ color: "#8B7E7A" }}>{label}</button>
+                  <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>{label}</button>
                 ))}
               </div>
             </div>
@@ -624,14 +679,14 @@ export default function Home() {
               <div className="flex flex-col gap-2 text-sm" style={{ color: "#8B7E7A" }}>
                 <span>г. Крупки, ул. Советская, 49</span>
                 <span>2 этаж, кабинет 7</span>
-                <a href={`tel:${PHONE}`} className="hover:text-white transition-colors" style={{ color: "#C9956A" }}>{PHONE_DISPLAY}</a>
+                <a href={`tel:${PHONE}`} className="hover:text-white transition-all duration-200 hover:translate-x-1" style={{ color: "#C9956A" }}>{PHONE_DISPLAY}</a>
                 <div className="flex items-center gap-3 mt-2">
                   {[
                     [TELEGRAM_URL, "TG"],
                     [WHATSAPP_URL, "WA"],
                     [INSTAGRAM_URL, "IG"],
                   ].map(([href, label]) => (
-                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all hover:scale-110" style={{ border: "1px solid rgba(255,255,255,0.2)", color: "#E8DCDA" }}>{label}</a>
+                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 hover:scale-110 hover:bg-white hover:text-black" style={{ border: "1px solid rgba(255,255,255,0.2)", color: "#E8DCDA" }}>{label}</a>
                   ))}
                 </div>
               </div>
@@ -643,7 +698,7 @@ export default function Home() {
               <span>© 2024 Зайко Татьяна. Все права защищены.</span>
               <span style={{ color: "#4A3E42" }}>УНП KE8812226</span>
             </div>
-            <a href="#" className="hover:text-white transition-colors">Политика конфиденциальности</a>
+            <a href="#" className="hover:text-white transition-all duration-200 hover:underline">Политика конфиденциальности</a>
           </div>
         </div>
       </footer>
@@ -662,6 +717,7 @@ export default function Home() {
         </a>
       </div>
 
-    </div>
+      </div>
+    </>
   )
 }

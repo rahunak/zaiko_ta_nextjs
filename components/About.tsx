@@ -23,7 +23,7 @@ export function About({ dikidiUrl }: AboutProps) {
               className="absolute -bottom-5 -right-5 w-20 h-20 rounded-full flex items-center justify-center"
               style={{ backgroundColor: "#B8748A", boxShadow: "0 8px 24px rgba(184,116,138,0.4)" }}
             >
-              <Image src="/images/ZT.svg" alt="ЗТ" width={48} height={48} className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+              <Image src="/images/ZT.svg" alt="" width={48} height={48} className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
             </div>
           </div>
 

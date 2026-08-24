@@ -17,7 +17,7 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagra
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Image src="/images/ZT.svg" alt="ЗТ" width={40} height={40} className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+              <Image src="/images/ZT.svg" alt="" width={40} height={40} className="object-contain" style={{ filter: "brightness(0) invert(1)" }} />
               <div>
                 <div className="font-display font-500 text-base" style={{ color: "#FAF6F2" }}>Зайко Татьяна</div>
                 <div className="text-xs" style={{ color: "#8B7E7A" }}>Мастер красоты, Крупки</div>
@@ -45,13 +45,13 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagra
               <a href={`tel:${phone}`} className="hover:text-white transition-all duration-200 hover:translate-x-1" style={{ color: "#C9956A" }}>{phoneDisplay}</a>
               <div className="flex items-center gap-3 mt-2">
                 <a href={telegramUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <Image src="/images/telegram.svg" alt="Telegram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  <Image src="/images/telegram.svg" alt="чат в Telegram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
                 </a>
                 <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <Image src="/images/whatsapp.svg" alt="WhatsApp" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  <Image src="/images/whatsapp.svg" alt="чат в WhatsApp" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
                 </a>
                 <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <Image src="/images/instagram.svg" alt="Instagram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                  <Image src="/images/instagram.svg" alt="Профиль в Instagram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
                 </a>
               </div>
             </div>

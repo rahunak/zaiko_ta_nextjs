@@ -71,19 +71,19 @@ export function Contacts({ phone, phoneDisplay, whatsappUrl, viberUrl, telegramU
             {/* Social links */}
             <div className="flex flex-wrap gap-3">
               <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90" style={{ backgroundColor: "#25D366", color: "#fff" }}>
-                <Image src="/images/whatsapp.svg" alt="whatsapp" width={24} height={24} />
+                <Image src="/images/whatsapp.svg" alt="чат в WhatsApp" width={24} height={24} />
                 WhatsApp
               </a>
               <a href={viberUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90" style={{ backgroundColor: "#7360F2", color: "#fff" }}>
-                <Image src="/images/viber.svg" alt="Viber" width={36} height={36} />
+                <Image src="/images/viber.svg" alt="чат в Viber" width={36} height={36} />
                 Viber
               </a>
               <a href={telegramUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90" style={{ backgroundColor: "#229ED9", color: "#fff" }}>
-                <Image src="/images/telegram.svg" alt="telegram" width={24} height={24} />
+                <Image src="/images/telegram.svg" alt="чат в Telegram" width={24} height={24} />
                 Telegram
               </a>
               <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)", color: "#fff" }}>
-                <Image src="/images/instagram.svg" alt="instagram" width={24} height={24} />
+                <Image src="/images/instagram.svg" alt="Профиль в Instagram" width={24} height={24} />
                 Instagram
               </a>
             </div>

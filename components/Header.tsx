@@ -24,7 +24,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         <button onClick={() => scrollTo("hero")} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-          <Image src="/images/ZT.svg" alt="ЗТ" width={36} height={36} className="object-contain" style={{ filter: "invert(30%) sepia(20%) saturate(600%) hue-rotate(300deg)" }} />
+          <Image src="/images/ZT.svg" alt="zaiko_ta - ламинирование ресниц и бровей в Крупках, Татьяна Зайко" width={36} height={36} className="object-contain" style={{ filter: "invert(30%) sepia(20%) saturate(600%) hue-rotate(300deg)" }} />
           <div className="leading-tight">
             <div className="font-display font-600 text-sm" style={{ color: scrolled ? "#1A1618" : "#FAF6F2" }}>Зайко Татьяна</div>
             <div className="text-xs" style={{ color: scrolled ? "#8B7E7A" : "rgba(250,246,242,0.65)" }}>beauty master</div>

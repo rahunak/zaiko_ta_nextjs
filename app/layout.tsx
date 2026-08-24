@@ -18,14 +18,19 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://zaiko.by'),
   title: "Зайко Татьяна — Ламинирование ресниц и бровей в Крупках",
   description: "Профессиональное ламинирование ресниц и долговременная укладка бровей в Крупках. 5+ лет опыта, гипоаллергенные составы. Мастер Зайко Татьяна.",
   keywords: ["ламинирование ресниц Крупки", "долговременная укладка бровей", "мастер бровист Крупки", "Зайко Татьяна", "окрашивание бровей", "beauty мастер Крупки"],
+  alternates: {
+    canonical: 'https://zaiko.by',
+  },
   openGraph: {
     title: "Зайко Татьяна — Ламинирование ресниц и бровей в Крупках",
     description: "Профессиональное ламинирование ресниц и долговременная укладка бровей. 5+ лет опыта, гипоаллергенные составы. Рейтинг 4.4★",
     type: "website",
     locale: "ru_RU",
+    url: 'https://zaiko.by',
     siteName: "Зайко Татьяна Beauty Master",
     images: [
       {
@@ -44,6 +49,13 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 

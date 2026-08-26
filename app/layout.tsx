@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "Зайко Татьяна Beauty Master",
     images: [
       {
-        url: "https://images.unsplash.com/photo-1674049406467-824ea37c7184?w=1200&h=630&fit=crop&auto=format",
+        url: "./images/og_image.webp",
         width: 1200,
         height: 630,
         alt: "Зайко Татьяна — мастер по ресницам и бровям в Крупках",

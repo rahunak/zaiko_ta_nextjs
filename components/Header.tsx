@@ -34,7 +34,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 text-sm">
           {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
-            <button key={id} onClick={() => scrollTo(id)} className="transition-all duration-200 hover:opacity-70 hover:scale-105" style={{ color: "#8B7E7A" }}>{label}</button>
+            <button key={id} onClick={() => scrollTo(id)} className="transition-all duration-200 hover:opacity-70 hover:scale-105 cursor-pointer" style={{ color: "#8B7E7A" }}>{label}</button>
           ))}
         </nav>
 

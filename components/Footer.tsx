@@ -31,7 +31,7 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagra
             <div className="font-medium text-sm mb-4" style={{ color: "#FAF6F2" }}>Навигация</div>
             <div className="flex flex-col gap-2">
               {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
-                <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>{label}</button>
+                <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1 cursor-pointer" style={{ color: "#8B7E7A" }}>{label}</button>
               ))}
             </div>
           </div>

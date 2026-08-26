@@ -23,14 +23,12 @@ export function Contacts({ phone, phoneDisplay, whatsappUrl, viberUrl, telegramU
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Map */}
           <div className="rounded-3xl overflow-hidden" style={{ height: "420px", border: "1px solid #E8DCDA" }}>
-            <iframe
-              src="https://yandex.ru/map-widget/v1/?ll=29.135800%2C54.319700&z=16&pt=29.135800,54.319700,pm2rdm&text=%D0%9A%D1%80%D1%83%D0%BF%D0%BA%D0%B8%2C%20%D1%83%D0%BB.%20%D0%A1%D0%BE%D0%B2%D0%B5%D1%82%D1%81%D0%BA%D0%B0%D1%8F%2049"
-              width="100%"
+            <iframe src="https://yandex.by/map-widget/v1/?z=12&ol=biz&oid=17028481096" width="100%"
               height="100%"
-              frameBorder="0"
               title="Карта - Зайко Татьяна, Крупки"
-              allowFullScreen
-            />
+              frameBorder="0"
+              allowFullScreen>
+            </iframe>
           </div>
 
           {/* Info */}

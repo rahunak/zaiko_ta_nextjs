@@ -25,10 +25,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://zaiko.by',
   },
-  verification: {
-    yandex: '5b014f5d4ea4bb79',
-    google: 'XUrscGobjOcPO2HImTiKv4XxWZTtTlIYyVP8YrDx2ig',
-  },
+  // verification: {
+  //   yandex: '',
+  //   google: '',
+  // },
   openGraph: {
     title: "Зайко Татьяна — Ламинирование ресниц и бровей в Крупках",
     description: "Профессиональное ламинирование ресниц и долговременная укладка бровей. 5+ лет опыта, гипоаллергенные составы. Рейтинг 4.4★",

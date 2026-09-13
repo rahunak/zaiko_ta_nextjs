@@ -183,6 +183,7 @@ export default function Home() {
           phoneDisplay={PHONE_DISPLAY}
           telegramUrl={TELEGRAM_URL}
           whatsappUrl={WHATSAPP_URL}
+          viberUrl={VIBER_URL}
           instagramUrl={INSTAGRAM_URL}
           scrollTo={scrollTo}
         />

@@ -5,11 +5,12 @@ interface FooterProps {
   phoneDisplay: string
   telegramUrl: string
   whatsappUrl: string
+  viberUrl: string
   instagramUrl: string
   scrollTo: (id: string) => void
 }
 
-export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagramUrl, scrollTo }: FooterProps) {
+export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl, instagramUrl, scrollTo }: FooterProps) {
   return (
     <footer style={{ backgroundColor: "#1A1618", color: "#E8DCDA" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
@@ -49,6 +50,9 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, instagra
                 </a>
                 <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
                   <Image src="/images/whatsapp.svg" alt="чат в WhatsApp" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />
+                </a>
+                <a href={viberUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+                  <Image src="/images/viber.svg" alt="чат в Viber" width={26} height={26} className="transition-all duration-200 group-hover:brightness-0" />
                 </a>
                 <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="group w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
                   <Image src="/images/instagram.svg" alt="Профиль в Instagram" width={16} height={16} className="transition-all duration-200 group-hover:brightness-0" />

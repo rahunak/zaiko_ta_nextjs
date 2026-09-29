@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import YandexMetrika from "@/components/YandexMetrika";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
 
 const inter = Inter({
@@ -78,6 +79,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Яндекс.Метрика — поведенческие факторы Яндекса. Отложенная загрузка,
             не влияет на TBT. Номер счётчика вписать в components/YandexMetrika.tsx. */}
         {isProduction && <YandexMetrika enabled={isProduction} />}
+
+        {/* GA4 — отложенная загрузка. ID вписать в components/GoogleAnalytics.tsx */}
+        {isProduction && <GoogleAnalytics enabled={isProduction} />}
       </body>
     </html>
   );

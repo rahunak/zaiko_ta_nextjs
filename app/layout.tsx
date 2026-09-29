@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
+import YandexMetrika from "@/components/YandexMetrika";
 import "./globals.css";
 
 const inter = Inter({
@@ -64,12 +65,20 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   return (
     <html
       lang="ru"
       className={`${inter.variable} ${playfair.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+
+        {/* Яндекс.Метрика — поведенческие факторы Яндекса. Отложенная загрузка,
+            не влияет на TBT. Номер счётчика вписать в components/YandexMetrika.tsx. */}
+        {isProduction && <YandexMetrika enabled={isProduction} />}
+      </body>
     </html>
   );
 }

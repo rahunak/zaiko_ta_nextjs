@@ -64,9 +64,9 @@ export const faqs = [
 ]
 
 export const galleryImages = [
-  { src: "./images/work_3.webp", alt: "Ламинирование ресниц - результат", tall: true },
-  { src: "./images/eye_6.webp", alt: "Оформление бровей - до и после", tall: false },
-  { src: "./images/eye_0.webp", alt: "Укладка бровей - результат", tall: false },
+  { src: "./images/result.avif", alt: "Ламинирование ресниц - результат", tall: true },
+  { src: "./images/brown_eye.avif", alt: "Оформление бровей - до и после", tall: false },
+  { src: "./images/brow_eye.avif", alt: "Укладка бровей - результат", tall: false },
   { src: "./images/work_5.webp", alt: "Ламинирование ресниц крупный план", tall: true },
   { src: "./images/work_4.webp", alt: "Идеальные брови после процедуры", tall: false },
   { src: "./images/girl_1.webp", alt: "Процесс ламинирования ресниц", tall: true },

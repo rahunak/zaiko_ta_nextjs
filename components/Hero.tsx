@@ -23,7 +23,7 @@ export function Hero({ dikidiUrl, phone, scrollTo }: HeroProps) {
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-6 animate-fade-up animate-fade-up-delay-1">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: "rgba(201,149,106,0.2)", color: "#F5C89A", border: "1px solid rgba(201,149,106,0.35)" }}>
-              ★ Рейтинг 4.4 на Яндексе
+              ★ Рейтинг 4.5 на Яндексе
             </span>
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#E8DCDA", border: "1px solid rgba(255,255,255,0.2)" }}>
               📍 ул. Советская 49, Крупки

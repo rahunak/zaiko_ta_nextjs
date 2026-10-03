@@ -45,7 +45,7 @@ export default function Home() {
     "@id": "https://zaiko.by",
     "url": "https://zaiko.by",
     "telephone": "+375256827229",
-    "priceRange": "20-45 BYN",
+    "priceRange": "20-50 BYN",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "ул. Советская, дом 49, 2 этаж, кабинет 7",

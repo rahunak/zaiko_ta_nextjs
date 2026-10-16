@@ -12,7 +12,8 @@ import { FAQ } from "@/components/FAQ"
 import { Contacts } from "@/components/Contacts"
 import { Footer } from "@/components/Footer"
 import { FloatingCTA } from "@/components/FloatingCTA"
-import { services, benefits, reviews, faqs, galleryImages } from "@/lib/data"
+import { Cities } from "@/components/Cities"
+import { services, benefits, reviews, faqs, galleryImages, citiesGeo } from "@/lib/data"
 
 const DIKIDI_URL = "https://dikidi.net/1784388?p=1.pi-ssm"
 const PHONE = "+375256827229"
@@ -41,7 +42,7 @@ export default function Home() {
     "@type": "BeautySalon",
     "name": "Зайко Татьяна - Ламинирование ресниц и бровей",
     "image": "https://zaiko.by/images/ZT.svg",
-    "description": "Профессиональное ламинирование ресниц и долговременная укладка бровей в Крупках. 5+ лет опыта, гипоаллергенные составы.",
+    "description": "Профессиональное ламинирование ресниц и долговременная укладка бровей в Крупках. 5+ лет опыта, гипоаллергенные составы. Удобно приезжать из Толочина, Новолукомля и Борисова.",
     "@id": "https://zaiko.by",
     "url": "https://zaiko.by",
     "telephone": "+375256827229",
@@ -59,12 +60,19 @@ export default function Home() {
       "latitude": "54.324896",
       "longitude": "29.142504"
     },
+    "areaServed": [
+      { "@type": "City", "name": "Крупки" },
+      { "@type": "City", "name": "Толочин" },
+      { "@type": "City", "name": "Новолукомль" },
+      { "@type": "City", "name": "Борисов" }
+    ],
     "openingHoursSpecification": [
       {
         "@type": "OpeningHoursSpecification",
         "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         "opens": "09:00",
-        "closes": "20:00"
+        // Синхронизировано с блоком «Часы работы» в components/Contacts.tsx (9:00–19:00)
+        "closes": "19:00"
       }
     ],
     "sameAs": [
@@ -72,6 +80,9 @@ export default function Home() {
       "https://t.me/Lapushka66",
       "https://dikidi.net/1784388"
     ],
+    // Единый источник правды по рейтингу: schema — по отзывам СВОБОДНО размещённым на
+    // этой странице (reviews из lib/data.ts), бейдж «4.5★ на Яндекс Картах» в Reviews.tsx —
+    // рейтинг ВНЕШНЕГО источника и в schema не дублируется. См. P2 отчёта 2026-10-16.
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "5.0",
@@ -165,6 +176,7 @@ export default function Home() {
         <Services services={services} dikidiUrl={DIKIDI_URL} />
         <Gallery images={galleryImages} instagramUrl={INSTAGRAM_URL} />
         <Benefits benefits={benefits} />
+        <Cities cities={citiesGeo} />
         <About dikidiUrl={DIKIDI_URL} />
         <Reviews reviews={reviews} />
         <FAQ faqs={faqs} />

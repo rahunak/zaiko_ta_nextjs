@@ -8,9 +8,18 @@ interface FooterProps {
   viberUrl: string
   instagramUrl: string
   scrollTo: (id: string) => void
+  navItems?: [string, string][]
 }
 
-export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl, instagramUrl, scrollTo }: FooterProps) {
+const DEFAULT_NAV: [string, string][] = [
+  ["Услуги", "services"],
+  ["Работы", "gallery"],
+  ["Обо мне", "about"],
+  ["Отзывы", "reviews"],
+  ["Контакты", "contacts"],
+]
+
+export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl, instagramUrl, scrollTo, navItems = DEFAULT_NAV }: FooterProps) {
   return (
     <footer style={{ backgroundColor: "#1A1618", color: "#E8DCDA" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
@@ -31,7 +40,7 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl
           <div>
             <div className="font-medium text-sm mb-4" style={{ color: "#FAF6F2" }}>Навигация</div>
             <div className="flex flex-col gap-2">
-              {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
+              {navItems.map(([label, id]) => (
                 <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1 cursor-pointer" style={{ color: "#8B7E7A" }}>{label}</button>
               ))}
             </div>

@@ -7,9 +7,18 @@ interface HeaderProps {
   scrolled: boolean
   scrollTo: (id: string) => void
   dikidiUrl: string
+  navItems?: [string, string][]
 }
 
-export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
+const DEFAULT_NAV: [string, string][] = [
+  ["Услуги", "services"],
+  ["Работы", "gallery"],
+  ["Обо мне", "about"],
+  ["Отзывы", "reviews"],
+  ["Контакты", "contacts"],
+]
+
+export function Header({ scrolled, scrollTo, dikidiUrl, navItems = DEFAULT_NAV }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
@@ -25,7 +34,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         <button onClick={() => scrollTo("hero")} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
           <Image src="/images/ZT.svg" alt="zaiko_ta - ламинирование ресниц и бровей в Крупках, Татьяна Зайко" width={36} height={36} className="object-contain" style={{ filter: "invert(30%) sepia(20%) saturate(600%) hue-rotate(300deg)" }} />
-          <div className="leading-tight">
+          <div className="leading-tight cursor-pointer">
             <div className="font-display font-600 text-sm" style={{ color: scrolled ? "#1A1618" : "#FAF6F2" }}>Зайко Татьяна</div>
             <div className="text-xs" style={{ color: scrolled ? "#8B7E7A" : "rgba(250,246,242,0.65)" }}>beauty master</div>
           </div>
@@ -33,7 +42,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 text-sm">
-          {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
+          {navItems.map(([label, id]) => (
             <button key={id} onClick={() => scrollTo(id)} className="transition-all duration-200 hover:opacity-70 hover:scale-105 cursor-pointer" style={{ color: "#8B7E7A" }}>{label}</button>
           ))}
         </nav>
@@ -63,7 +72,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl }: HeaderProps) {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden px-4 pb-4 pt-2" style={{ backgroundColor: "rgba(250,246,242,0.98)" }}>
-          {[["Услуги", "services"], ["Работы", "gallery"], ["Обо мне", "about"], ["Отзывы", "reviews"], ["Контакты", "contacts"]].map(([label, id]) => (
+          {navItems.map(([label, id]) => (
             <button key={id} onClick={() => { scrollTo(id); setMenuOpen(false); }} className="block w-full text-left py-3 text-sm border-b" style={{ color: "#1A1618", borderColor: "#E8DCDA" }}>{label}</button>
           ))}
           <a href={dikidiUrl} target="_blank" rel="noopener noreferrer" className="mt-3 w-full flex items-center justify-center py-3 rounded-full text-sm font-medium" style={{ backgroundColor: "#B8748A", color: "#fff" }}>Записаться онлайн</a>

@@ -8,7 +8,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/_next/', '/admin/', '/private/'],
+        // /_next/static содержит критичные для Next.js ассеты (CSS/JS/шрифты):
+        // блокировать всю папку /_next/ опасно для краулера — блокируем только
+        // внутренние API и служебные роуты.
+        disallow: ['/api/', '/admin/', '/private/'],
       },
       {
         userAgent: ['OAI-SearchBot', 'PerplexityBot', 'ClaudeBot', 'GoogleOther'],

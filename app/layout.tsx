@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import YandexMetrika from "@/components/YandexMetrika";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import PhoneClickTracker from "@/components/PhoneClickTracker";
+import ConversionTracker from "@/components/ConversionTracker";
 import "./globals.css";
 
 const inter = Inter({
@@ -86,6 +87,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         {/* Глобальный трекер кликов по телефонным ссылкам → GA4 tel_click */}
         {isProduction && <PhoneClickTracker />}
+
+        {/* Конверсии: WhatsApp/Viber/Telegram/DIKIDI/Instagram → GA4 */}
+        {isProduction && <ConversionTracker />}
       </body>
     </html>
   );

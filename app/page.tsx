@@ -116,7 +116,9 @@ export default function Home() {
           "name": service.name,
           "description": service.desc
         },
-        "price": Number(service.price.replace(/[^\d.]/g, '')),
+        // цена: берём ПЕРВОЕ число («35/40 BYN» → 35, «50 BYN» → 50);
+        // replace(/[^\d.]/g) для «35/40» склеивал в 3540 — баг из REPORT_SEO.md §4
+        "price": parseFloat(service.price.match(/[\d.]+/)?.[0] ?? "0"),
         "priceCurrency": "BYN"
       }))
     }

@@ -6,7 +6,10 @@ import { Footer } from "@/components/Footer"
 import { FloatingCTA } from "@/components/FloatingCTA"
 import { FAQ } from "@/components/FAQ"
 import { StarRating } from "./StarRating"
-import { services } from "@/lib/data"
+import { services, galleryImages } from "@/lib/data"
+// Перелинковка гео-посадки ↔ блог (план роста 25.10, Этап 1):
+// статья блога ссылается на гео-страницу, гео-страница — на статьи.
+import { articles } from "@/lib/blog"
 
 export interface GeoCityData {
   slug: string
@@ -175,10 +178,57 @@ export default function GeoPage({
         </div>
       </section>
 
+      {/* Работы мастера (фото с главной, alt-тексты из lib/data) */}
+      <section className="py-12 px-4 sm:px-6" style={{ backgroundColor: "#FAF6F2" }}>
+        <div className="max-w-3xl mx-auto">
+          <p className="text-xs uppercase tracking-widest mb-3 font-medium" style={{ color: "#B8748A" }}>Работы мастера</p>
+          <div className="grid grid-cols-3 gap-2">
+            {galleryImages.slice(0, 6).map((img) => (
+              <img
+                key={img.src}
+                src={img.src}
+                alt={img.alt}
+                loading="lazy"
+                className="w-full h-24 sm:h-32 object-cover rounded-xl"
+              />
+            ))}
+          </div>
+          <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-xs hover:opacity-70 transition-opacity" style={{ color: "#8B7E7A" }}>
+            Больше работ — Instagram @zaiko_ta
+          </a>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section id="faq" className="py-16 px-4 sm:px-6" style={{ backgroundColor: "#F5EDE5" }}>
         <div className="max-w-3xl mx-auto">
           <FAQ faqs={data.faqs} />
+        </div>
+      </section>
+
+      {/* Полезные статьи (перелинковка с блогом) */}
+      <section id="blog" className="py-12 px-4 sm:px-6" style={{ backgroundColor: "#F5EDE5" }}>
+        <div className="max-w-3xl mx-auto">
+          <p className="text-xs uppercase tracking-widest mb-3 font-medium" style={{ color: "#B8748A" }}>Полезные статьи</p>
+          <h2 className="font-display text-2xl sm:text-3xl font-500 mb-6" style={{ color: "#1A1618" }}>
+            Всё о процедуре — до того, как ехать
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {articles.slice(0, 3).map((article) => (
+              <a
+                key={article.slug}
+                href={`/blog/${article.slug}`}
+                className="block p-5 rounded-2xl transition-all hover:shadow-md"
+                style={{ backgroundColor: "#fff", border: "1px solid #E8DCDA" }}
+              >
+                <div className="font-medium text-sm mb-2" style={{ color: "#1A1618" }}>{article.h1}</div>
+                <div className="text-xs leading-relaxed" style={{ color: "#8B7E7A" }}>{article.description}</div>
+              </a>
+            ))}
+          </div>
+          <a href="/blog" className="inline-block mt-4 text-sm hover:underline" style={{ color: "#B8748A" }}>
+            Все статьи блога →
+          </a>
         </div>
       </section>
 

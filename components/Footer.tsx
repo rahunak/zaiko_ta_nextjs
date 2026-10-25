@@ -43,6 +43,12 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl
               {navItems.map(([label, id]) => (
                 <button key={id} onClick={() => scrollTo(id)} className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1 cursor-pointer" style={{ color: "#8B7E7A" }}>{label}</button>
               ))}
+              <a href="/blog" className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>Блог</a>
+            </div>
+            <div className="flex flex-col gap-2 mt-6">
+              <a href="/brovi-tolochin" className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>Брови из Толочина</a>
+              <a href="/brovi-novolukoml" className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>Брови из Новолукомля</a>
+              <a href="/brovi-borisov" className="text-left text-sm transition-all duration-200 hover:text-white hover:translate-x-1" style={{ color: "#8B7E7A" }}>Брови из Борисова</a>
             </div>
           </div>
 

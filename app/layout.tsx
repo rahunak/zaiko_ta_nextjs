@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import YandexMetrika from "@/components/YandexMetrika";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import PhoneClickTracker from "@/components/PhoneClickTracker";
 import "./globals.css";
 
 const inter = Inter({
@@ -82,6 +83,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         {/* GA4 — отложенная загрузка. ID вписать в components/GoogleAnalytics.tsx */}
         {isProduction && <GoogleAnalytics enabled={isProduction} />}
+
+        {/* Глобальный трекер кликов по телефонным ссылкам → GA4 tel_click */}
+        {isProduction && <PhoneClickTracker />}
       </body>
     </html>
   );

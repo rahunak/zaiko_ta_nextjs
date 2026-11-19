@@ -1,0 +1,29 @@
+# Локальная БД для служебного раздела /admin.
+# Порт 5434 выбран потому, что 5431/5432/5433 и 54322 уже заняты другими контейнерами.
+# Пароль по умолчанию — только для локальной разработки; переопределяется в .env.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: zaiko_admin_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zaiko_admin}
+      POSTGRES_USER: ${POSTGRES_USER:-zaiko}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zaiko_dev_password}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - zaiko_admin_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-zaiko} -d ${POSTGRES_DB:-zaiko_admin}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  zaiko_admin_pgdata:

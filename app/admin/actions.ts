@@ -12,7 +12,8 @@ import {
 import { query } from '@/lib/db';
 import { checkDikidiSlot } from '@/lib/dikidi/availability';
 import { removeDikidiRecord, sendAppointmentToDikidi } from '@/lib/dikidi/send';
-import { belarusDateKey, belarusTime, toBelarusDate } from '@/lib/dikidi/time';
+import { belarusDateKey, toBelarusDate } from '@/lib/dikidi/time';
+import { withQuery } from '@/lib/url';
 
 const PHONE_PATTERN = /^\+?\d[\d\s()-]{6,19}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -196,6 +197,8 @@ function safeBackTo(value: string | null, fallback = '/admin'): string {
   return value && value.startsWith('/admin') ? value : fallback;
 }
 
+
+
 /**
  * Отмена записи.
  *
@@ -210,7 +213,7 @@ export async function cancelAppointment(formData: FormData): Promise<void> {
   const backTo = safeBackTo(String(formData.get('backTo') ?? ''), '/admin/schedule');
 
   if (!Number.isFinite(id) || id <= 0) {
-    redirect(`${backTo}?error=invalid_id`);
+    redirect(withQuery(backTo, { error: 'invalid_id' }));
   }
 
   const { rows } = await query<StoredAppointment>(
@@ -223,7 +226,7 @@ export async function cancelAppointment(formData: FormData): Promise<void> {
   const appointment = rows[0];
 
   if (!appointment) {
-    redirect(`${backTo}?error=not_found`);
+    redirect(withQuery(backTo, { error: 'not_found' }));
   }
 
   let dikidiError: string | null = null;
@@ -248,7 +251,160 @@ export async function cancelAppointment(formData: FormData): Promise<void> {
   revalidatePath('/admin');
   revalidatePath('/admin/schedule');
 
-  redirect(`${backTo}?cancelled=${id}${dikidiError ? '&sync=failed' : ''}`);
+  redirect(
+    withQuery(backTo, {
+      cancelled: String(id),
+      sync: dikidiError ? 'failed' : undefined,
+      error: undefined,
+    }),
+  );
+}
+
+/** Строка формы DIKIDI: id записи в журнале. */
+const DIKIDI_ID_PATTERN = /^\d{1,20}$/;
+
+/**
+ * Отмена записи, которая существует только в DIKIDI (не заводилась в админке).
+ *
+ * Удаляем её в кабинете мастера через `remove-record`; локальной строки может не быть,
+ * поэтому заодно закрываем возможную связанную запись админки (`dikidi_id`).
+ * Причина отказа DIKIDI возвращается в адрес — иначе пользователь не поймёт, почему запись цела.
+ */
+export async function cancelDikidiAppointment(formData: FormData): Promise<void> {
+  await requireUser();
+
+  const backTo = safeBackTo(String(formData.get('backTo') ?? ''), '/admin/schedule');
+  const dikidiId = String(formData.get('dikidiId') ?? '').trim();
+
+  if (!DIKIDI_ID_PATTERN.test(dikidiId)) {
+    redirect(withQuery(backTo, { error: 'invalid_dikidi' }));
+  }
+
+  const removed = await removeDikidiRecord(dikidiId);
+
+  if (removed.status === 'failed') {
+    redirect(
+      withQuery(backTo, {
+        removeError: dikidiId,
+        reason: removed.error.slice(0, 200),
+      }),
+    );
+  }
+
+  await query(
+    `update appointments
+        set cancelled_at = now(),
+            cancelled_source = 'admin',
+            updated_at = now(),
+            sync_error = null
+      where dikidi_id = $1 and cancelled_at is null`,
+    [dikidiId],
+  );
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/schedule');
+
+  redirect(withQuery(backTo, { removed: dikidiId, error: undefined }));
+}
+
+/**
+ * Правка записи, которая пришла из журнала DIKIDI.
+ *
+ * Чтобы правка уходила в ту же запись DIKIDI (без дубля), заводим связанную строку админки
+ * с `dikidi_id` и статусом `synced` и открываем её — дальше работает обычная форма правки.
+ * Если строка уже есть (например, запись создавали в админке), просто открываем её.
+ */
+export async function claimDikidiAppointment(formData: FormData): Promise<void> {
+  const user = await requireUser();
+
+  const backTo = safeBackTo(String(formData.get('backTo') ?? ''), '/admin/schedule');
+  const dikidiId = String(formData.get('dikidiId') ?? '').trim();
+  const clientName = String(formData.get('clientName') ?? '').trim().slice(0, 80);
+  const clientPhone = String(formData.get('clientPhone') ?? '').trim().slice(0, 30);
+  const serviceName = String(formData.get('serviceName') ?? '').trim().slice(0, 120);
+  const startsAtIso = String(formData.get('startsAtIso') ?? '').trim();
+  const comment = String(formData.get('comment') ?? '').trim().slice(0, 500);
+  const durationMin = Number(formData.get('durationMin') ?? 0);
+  const price = Number(formData.get('price') ?? 0);
+
+  if (!DIKIDI_ID_PATTERN.test(dikidiId)) {
+    redirect(withQuery(backTo, { error: 'invalid_dikidi' }));
+  }
+
+  const startsAt = new Date(startsAtIso);
+  if (Number.isNaN(startsAt.getTime())) {
+    redirect(withQuery(backTo, { error: 'invalid_datetime' }));
+  }
+
+  const { rows: existingRows } = await query<{ id: string; cancelled_at: Date | null }>(
+    'select id, cancelled_at from appointments where dikidi_id = $1',
+    [dikidiId],
+  );
+
+  const existing = existingRows[0];
+
+  if (existing && !existing.cancelled_at) {
+    redirect(`/admin/appointments/${existing.id}`);
+  }
+
+  // Связанная строка уже отменена: воскрешать её молча нельзя.
+  if (existing) {
+    redirect(withQuery(backTo, { error: 'dikidi_already_cancelled' }));
+  }
+
+  const { rows: serviceRows } = serviceName
+    ? await query<{ id: string }>(
+        `select id from services
+          where is_active = true and lower(name) = lower($1)
+          limit 1`,
+        [serviceName],
+      )
+    : { rows: [] as Array<{ id: string }> };
+
+  let insertedId: string;
+
+  try {
+    const { rows: inserted } = await query<{ id: string }>(
+      `insert into appointments
+         (client_name, client_phone, service_id, service_name, starts_at,
+          duration_min, price, comment, source, dikidi_id, sync_status, created_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'admin', $9, 'synced', $10)
+       returning id`,
+      [
+        clientName || 'Клиент DIKIDI',
+        clientPhone,
+        serviceRows[0]?.id ?? null,
+        serviceName || 'Услуга DIKIDI',
+        startsAt,
+        Number.isFinite(durationMin) && durationMin > 0 ? Math.round(durationMin) : 30,
+        Number.isFinite(price) && price > 0 ? price : 0,
+        comment,
+        dikidiId,
+        user.id,
+      ],
+    );
+
+    insertedId = inserted[0].id;
+  } catch (error) {
+    // Параллельный клик по той же записи: dikidi_id уникален — открываем уже созданную строку.
+    if ((error as { code?: string }).code === '23505') {
+      const { rows: again } = await query<{ id: string }>(
+        'select id from appointments where dikidi_id = $1',
+        [dikidiId],
+      );
+
+      if (again[0]) {
+        redirect(`/admin/appointments/${again[0].id}`);
+      }
+    }
+
+    throw error;
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/schedule');
+
+  redirect(`/admin/appointments/${insertedId}`);
 }
 
 /**

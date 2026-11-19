@@ -13,7 +13,21 @@ import {
   todayBelarus,
 } from '@/lib/dikidi/time';
 import type { ScheduleEntry } from '@/lib/dikidi/types';
-import { cancelAppointment } from '../../actions';
+import {
+  cancelAppointment,
+  cancelDikidiAppointment,
+  claimDikidiAppointment,
+} from '../../actions';
+
+/** Что сказать пользователю, если действие не удалось. */
+const ACTION_ERRORS: Record<string, string> = {
+  invalid_id: 'Некорректный номер записи.',
+  invalid_dikidi: 'Некорректный номер записи DIKIDI — действие отменено.',
+  invalid_datetime: 'Не удалось разобрать время записи из DIKIDI.',
+  not_found: 'Запись не найдена или уже отменена.',
+  dikidi_already_cancelled:
+    'Эта запись уже отменена в админке — повторно открыть её нельзя. Отмените её в DIKIDI напрямую.',
+};
 
 type Range = 'day' | 'week';
 
@@ -100,13 +114,19 @@ export default async function SchedulePage({
     range?: string;
     cancelled?: string;
     sync?: string;
+    removed?: string;
+    removeError?: string;
+    reason?: string;
     error?: string;
   }>;
 }) {
   const params = await searchParams;
   const cancelledId = params.cancelled;
   const cancelSync = params.sync;
-  const cancelError = params.error;
+  const removedId = params.removed;
+  const removeErrorId = params.removeError;
+  const removeReason = params.reason;
+  const actionError = params.error ? ACTION_ERRORS[params.error] ?? params.error : null;
   const dateKey = params.date && DATE_KEY.test(params.date) ? params.date : todayBelarus();
   const range: Range = params.range === 'day' ? 'day' : 'week';
 
@@ -169,6 +189,8 @@ export default async function SchedulePage({
   const adminCount = merged.length - dikidiCount;
 
   const navQuery = (date: string) => `?date=${date}&range=${range}`;
+  /** Адрес возврата для действий: сохраняет открытый день/неделю. */
+  const backTo = `/admin/schedule?date=${dateKey}&range=${range}`;
 
   return (
     <div className="space-y-6">
@@ -250,9 +272,27 @@ export default async function SchedulePage({
         </div>
       ) : null}
 
-      {cancelError ? (
+      {removedId ? (
+        <div className="rounded-lg border border-border bg-cream px-4 py-3 text-sm">
+          Запись №{removedId} удалена из DIKIDI.
+        </div>
+      ) : null}
+
+      {removeErrorId ? (
         <div className="rounded-lg border border-gold-light bg-gold-light px-4 py-3 text-sm text-gold">
-          Не удалось отменить запись: возможно, её уже отменили или она из DIKIDI.
+          <p className="font-medium">
+            Не удалось удалить запись №{removeErrorId} в DIKIDI — она осталась в расписании.
+          </p>
+          <p className="mt-1">
+            {removeReason ||
+              'Причина не получена. Проверьте сессию DIKIDI (DIKIDI_TOKEN или DIKIDI_LOGIN/DIKIDI_PASSWORD).'}
+          </p>
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="rounded-lg border border-gold-light bg-gold-light px-4 py-3 text-sm text-gold">
+          {actionError}
         </div>
       ) : null}
 
@@ -338,13 +378,49 @@ export default async function SchedulePage({
                               name="appointmentId"
                               value={entry.key.replace('admin:', '')}
                             />
-                            <input
-                              type="hidden"
-                              name="backTo"
-                              value={`/admin/schedule?date=${dateKey}&range=${range}`}
-                            />
+                            <input type="hidden" name="backTo" value={backTo} />
                             <button
                               type="submit"
+                              className="rounded-lg border border-border px-2 py-0.5 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
+                            >
+                              Отменить
+                            </button>
+                          </form>
+                        </>
+                      ) : entry.dikidiId ? (
+                        <>
+                          <form action={claimDikidiAppointment}>
+                            <input type="hidden" name="dikidiId" value={entry.dikidiId} />
+                            <input type="hidden" name="clientName" value={entry.clientName} />
+                            <input type="hidden" name="clientPhone" value={entry.clientPhone} />
+                            <input
+                              type="hidden"
+                              name="serviceName"
+                              value={entry.services[0] ?? ''}
+                            />
+                            <input type="hidden" name="startsAtIso" value={entry.startsAtIso} />
+                            <input
+                              type="hidden"
+                              name="durationMin"
+                              value={String(entry.durationMin)}
+                            />
+                            <input type="hidden" name="price" value={String(entry.price)} />
+                            <input type="hidden" name="comment" value={entry.comment} />
+                            <input type="hidden" name="backTo" value={backTo} />
+                            <button
+                              type="submit"
+                              title="Открыть форму правки. Запись свяжется с DIKIDI, и сохранение обновит её там же, без дубля."
+                              className="rounded-lg border border-border px-2 py-0.5 text-xs transition hover:border-rose hover:text-rose-dark"
+                            >
+                              Изменить
+                            </button>
+                          </form>
+                          <form action={cancelDikidiAppointment}>
+                            <input type="hidden" name="dikidiId" value={entry.dikidiId} />
+                            <input type="hidden" name="backTo" value={backTo} />
+                            <button
+                              type="submit"
+                              title="Удалить запись в DIKIDI — отменить её как это делает мастер в кабинете."
                               className="rounded-lg border border-border px-2 py-0.5 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
                             >
                               Отменить

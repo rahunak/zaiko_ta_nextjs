@@ -15,7 +15,7 @@
  */
 
 export type DikidiLoginResult =
-  | { ok: true; token: string }
+  | { ok: true; token: string; cookies: string }
   | {
       ok: false;
       kind: 'no_credentials' | 'bad_credentials' | 'captcha' | 'unreachable' | 'unexpected';
@@ -432,5 +432,5 @@ export async function loginToDikidi(): Promise<DikidiLoginResult> {
     };
   }
 
-  return { ok: true, token };
+  return { ok: true, token, cookies: cookieHeader(jar) };
 }

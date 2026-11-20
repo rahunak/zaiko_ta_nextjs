@@ -58,10 +58,15 @@ alter table appointments add column if not exists updated_at timestamptz;
 create table if not exists dikidi_auth (
   id smallint primary key check (id = 1),
   token text not null,
+  -- полный cookie-заголовок кабинета (token + cookie_name + uac + cid + lang и др.)
+  cookies text,
   -- login: получен автологином; manual: вписан вручную/из env
   source text not null default 'login',
   updated_at timestamptz not null default now()
 );
+
+-- Миграция для уже существующих БД: добавляем колонку cookies.
+alter table dikidi_auth add column if not exists cookies text;
 
 create index if not exists appointments_starts_idx on appointments (starts_at);
 create index if not exists appointments_source_idx on appointments (source);

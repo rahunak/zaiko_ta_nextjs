@@ -87,6 +87,9 @@ function failureHint(kind: string, message: string): string {
     case 'config':
       return `Проверьте DIKIDI_JOURNAL_ARGS: ${message}`;
     default:
+      if (message.includes('error is 1')) {
+        return `${message}. DIKIDI отклонил запрос по правам: проверьте, что DIKIDI_TOKEN — cookie token кабинета, а DIKIDI_MASTER_ID/DIKIDI_COMPANY_ID совпадают с вашим кабинетом. Если автологин настроен, можно убрать DIKIDI_TOKEN и дать приложению войти по DIKIDI_LOGIN/DIKIDI_PASSWORD.`;
+      }
       return message;
   }
 }

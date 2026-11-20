@@ -11,7 +11,12 @@
  *
  * Только серверный код.
  */
-import { getDikidiToken, refreshDikidiToken } from '@/lib/dikidi/session';
+import {
+  getDikidiToken,
+  getDikidiCookieHeader,
+  refreshDikidiToken,
+  invalidateDikidiSessionCache,
+} from '@/lib/dikidi/session';
 
 export type DikidiHttpFailureKind =
   | 'not_configured'
@@ -129,7 +134,7 @@ function errorMessage(payload: unknown): string | null {
 }
 
 async function perform(
-  token: string,
+  cookieHeader: string,
   path: string,
   body: string,
   company: string,
@@ -144,12 +149,19 @@ async function perform(
       headers: {
         accept: 'application/json, text/javascript, */*; q=0.01',
         'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8',
+        'accept-encoding': 'gzip, deflate, br, zstd',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
         origin: base,
         referer: `${base}/ru/owner/journal/?company=${company}`,
         'x-requested-with': 'XMLHttpRequest',
         'user-agent': USER_AGENT,
-        cookie: `token=${token}`,
+        'sec-ch-ua': '"Not-A.Brand";v="99", "Google Chrome";v="157", "Chromium";v="157"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Linux"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        cookie: cookieHeader,
       },
       body,
       redirect: 'manual',
@@ -208,19 +220,20 @@ async function post(
   options: { timeoutMs?: number } = {},
 ): Promise<DikidiHttpResult<unknown>> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const token = await getDikidiToken();
+  const cookieHeader = await getDikidiCookieHeader();
 
-  if (!token) {
+  if (!cookieHeader) {
     return failure('not_configured', NO_TOKEN);
   }
 
-  let result = await perform(token, path, body, company, timeoutMs);
+  let result = await perform(cookieHeader, path, body, company, timeoutMs);
 
   if (result.ok || result.kind !== 'auth') {
     return result as DikidiHttpResult<unknown>;
   }
 
-  const refreshed = await refreshDikidiToken(token);
+  const previousToken = await getDikidiToken();
+  const refreshed = await refreshDikidiToken(previousToken);
 
   if (!refreshed.ok) {
     return failure(
@@ -229,7 +242,9 @@ async function post(
     );
   }
 
-  result = await perform(refreshed.token, path, body, company, timeoutMs);
+  invalidateDikidiSessionCache();
+  const nextCookieHeader = await getDikidiCookieHeader();
+  result = await perform(nextCookieHeader ?? cookieHeader, path, body, company, timeoutMs);
 
   if (result.ok) {
     return result as DikidiHttpResult<unknown>;

@@ -53,6 +53,9 @@ alter table appointments add column if not exists cancelled_source text;
 
 alter table appointments add column if not exists updated_at timestamptz;
 
+-- Время отправки напоминания в Telegram за 60 минут до записи (null = ещё не отправлено).
+alter table appointments add column if not exists reminder_sent_at timestamptz;
+
 -- Сессия кабинета DIKIDI для прямых HTTP-запросов (транспорт http).
 -- Одна строка: cookie `token` переживает рестарт и общая для всех инстансов на serverless.
 create table if not exists dikidi_auth (
@@ -67,6 +70,10 @@ create table if not exists dikidi_auth (
 
 -- Миграция для уже существующих БД: добавляем колонку cookies.
 alter table dikidi_auth add column if not exists cookies text;
+
+-- Состояние синхронизации записей DIKIDI -> БД.
+alter table dikidi_auth add column if not exists last_sync_at timestamptz;
+alter table dikidi_auth add column if not exists last_sync_hash text;
 
 create index if not exists appointments_starts_idx on appointments (starts_at);
 create index if not exists appointments_source_idx on appointments (source);

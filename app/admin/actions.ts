@@ -11,6 +11,7 @@ import {
 } from '@/lib/auth/session';
 import { query } from '@/lib/db';
 import { checkDikidiSlot } from '@/lib/dikidi/availability';
+import { syncDikidiOnLogin } from '@/lib/dikidi/sync';
 import { removeDikidiRecord, sendAppointmentToDikidi } from '@/lib/dikidi/send';
 import { belarusDateKey, toBelarusDate } from '@/lib/dikidi/time';
 import { withQuery } from '@/lib/url';
@@ -46,6 +47,14 @@ export async function loginAction(formData: FormData): Promise<void> {
   }
 
   await createSession(Number(user.id));
+
+  // Подтягиваем записи DIKIDI в БД на этапе входа, чтобы мастер видел актуальное расписание.
+  try {
+    await syncDikidiOnLogin();
+  } catch {
+    // Вход не должен падать из-за синхронизации.
+  }
+
   redirect('/admin');
 }
 

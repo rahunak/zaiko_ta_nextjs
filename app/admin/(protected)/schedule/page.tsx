@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
 import { fetchDikidiSchedule } from '@/lib/dikidi/source';
+import { syncDikidiEntriesIfNeeded } from '@/lib/dikidi/sync';
+import { sendDueReminders } from '@/lib/notifications/reminders';
 import {
   addDays,
   belarusDateKey,
   belarusLongDate,
   belarusTime,
   dateKeyToDate,
-  startOfWeek,
   toBelarusDate,
   todayBelarus,
 } from '@/lib/dikidi/time';
@@ -134,12 +135,34 @@ export default async function SchedulePage({
   const dateKey = params.date && DATE_KEY.test(params.date) ? params.date : todayBelarus();
   const range: Range = params.range === 'day' ? 'day' : 'week';
 
-  const from = range === 'week' ? startOfWeek(dateKey) : dateKey;
+  const from = dateKey;
   const to = range === 'week' ? addDays(from, 6) : from;
   const step = range === 'week' ? 7 : 1;
 
   const rangeStart = toBelarusDate(from, '00:00');
   const rangeEnd = toBelarusDate(addDays(to, 1), '00:00');
+
+  // Запрашиваем только видимый диапазон: при широком окне DIKIDI возвращает
+  // усечённые записи (без имени клиента/услуг). Видимый диапазон обычно содержит
+  // не более ~10-15 записей, для которых DIKIDI отдаёт полные данные.
+  const dikidiResult = await fetchDikidiSchedule(from, to);
+
+  // Зеркалим записи из DIKIDI в БД, чтобы они не терялись при отказе от DIKIDI
+  // и были доступны как обычные записи админки (связь по dikidi_id).
+  if (dikidiResult.ok) {
+    try {
+      await syncDikidiEntriesIfNeeded(dikidiResult.entries);
+    } catch {
+      // Синхронизация не должна ломать отображение расписания.
+    }
+  }
+
+  // Отправляем напоминания за 60 минут до записи, если они ещё не ушли.
+  try {
+    await sendDueReminders();
+  } catch {
+    // Напоминания не должны ломать страницу.
+  }
 
   const { rows: localRows } = await query<LocalRow>(
     `select id, client_name, client_phone, service_name, starts_at,
@@ -151,11 +174,6 @@ export default async function SchedulePage({
       order by starts_at`,
     [rangeStart!, rangeEnd!],
   );
-
-  // Запрашиваем только видимый диапазон: при широком окне DIKIDI возвращает
-  // усечённые записи (без имени клиента/услуг). Видимый диапазон обычно содержит
-  // не более ~10-15 записей, для которых DIKIDI отдаёт полные данные.
-  const dikidiResult = await fetchDikidiSchedule(from, to);
 
   const local = localEntries(localRows);
   const dikidiEntries = dikidiResult.ok

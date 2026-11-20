@@ -1,17 +1,11 @@
-import {
-  callOperation,
-  type ApiAnythingFailureKind,
-} from '@/lib/api-anything/client';
-import { renderArgsTemplate } from '@/lib/api-anything/template';
+import { callDikidi } from '@/lib/dikidi/api';
 import { mapJournalToEntries } from '@/lib/dikidi/map';
+import type { DikidiFailureKind } from '@/lib/dikidi/api';
 import type { DikidiJournalResponse, ScheduleEntry } from '@/lib/dikidi/types';
 
 export type JournalFetchResult =
   | { ok: true; entries: ScheduleEntry[] }
-  | { ok: false; kind: ApiAnythingFailureKind | 'config'; message: string };
-
-// Имена совпадают с параметрами операции `journal`, обученной в api-anything 2026-11-17.
-const DEFAULT_JOURNAL_ARGS = '{"company":"{company}","from":"{from}","to":"{to}"}';
+  | { ok: false; kind: DikidiFailureKind | 'config'; message: string };
 
 /** Ответ операции может быть как самим журналом, так и обёрткой { data: ... }. */
 function pickJournal(payload: unknown): DikidiJournalResponse | null {
@@ -40,33 +34,23 @@ function pickJournal(payload: unknown): DikidiJournalResponse | null {
 }
 
 /**
- * Читает журнал DIKIDI через операцию api-anything.
- * Аргументы операции задаются шаблоном DIKIDI_JOURNAL_ARGS: имена параметров
- * зависят от того, как операция была обучена.
+ * Читает журнал DIKIDI через транспортный слой (http или api-anything).
+ * Аргументы — сырые значения; шаблон DIKIDI_JOURNAL_ARGS применяется только
+ * в ветке api-anything внутри callDikidi.
  */
 export async function fetchDikidiSchedule(
   from: string,
   to: string,
 ): Promise<JournalFetchResult> {
-  const site = process.env.DIKIDI_API_SITE || 'dikidi';
-  const op = process.env.DIKIDI_JOURNAL_OP || 'journal';
+  const company = process.env.DIKIDI_COMPANY_ID || '1784388';
+  const master = process.env.DIKIDI_MASTER_ID || '3834316';
 
-  const args = renderArgsTemplate(
-    process.env.DIKIDI_JOURNAL_ARGS || DEFAULT_JOURNAL_ARGS,
-    {
-      // Дефолты — салон Зайко; переопределяются в .env.local.
-      company: process.env.DIKIDI_COMPANY_ID || '1784388',
-      master: process.env.DIKIDI_MASTER_ID || '3834316',
-      from,
-      to,
-    },
-  );
-
-  if ('error' in args) {
-    return { ok: false, kind: 'config', message: args.error };
-  }
-
-  const result = await callOperation<unknown>(site, op, args);
+  const result = await callDikidi<unknown>('journal', {
+    company,
+    master,
+    from,
+    to,
+  });
 
   if (!result.ok) {
     return result;
@@ -80,7 +64,7 @@ export async function fetchDikidiSchedule(
       kind: 'failed',
       message:
         'Ответ операции не похож на журнал DIKIDI. Проверьте операцию: api-anything ops ' +
-        site,
+        (process.env.DIKIDI_API_SITE || 'dikidi'),
     };
   }
 

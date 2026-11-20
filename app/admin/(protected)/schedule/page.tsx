@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
-import { isApiAnythingConfigured } from '@/lib/api-anything/client';
 import { fetchDikidiSchedule } from '@/lib/dikidi/source';
 import {
   addDays,
@@ -78,7 +77,9 @@ function failureHint(kind: string, message: string): string {
     case 'not_configured':
       return 'Не задан API_ANYTHING_TOKEN. Скопируйте токен из ~/.api-anything/serve-token в .env.local и перезапустите next dev.';
     case 'unreachable':
-      return 'api-anything не запущен. Выполните: bun run api-anything:serve';
+      return message.includes('dikidi.net')
+        ? message
+        : 'api-anything не запущен. Выполните: bun run api-anything:serve';
     case 'unauthorized':
       return 'api-anything отклонил токен. Сверьте API_ANYTHING_TOKEN с ~/.api-anything/serve-token.';
     case 'op_missing':
@@ -151,13 +152,7 @@ export default async function SchedulePage({
   // Запрашиваем только видимый диапазон: при широком окне DIKIDI возвращает
   // усечённые записи (без имени клиента/услуг). Видимый диапазон обычно содержит
   // не более ~10-15 записей, для которых DIKIDI отдаёт полные данные.
-  const dikidiResult = isApiAnythingConfigured()
-    ? await fetchDikidiSchedule(from, to)
-    : ({
-        ok: false,
-        kind: 'not_configured',
-        message: 'API_ANYTHING_TOKEN не задан',
-      } as const);
+  const dikidiResult = await fetchDikidiSchedule(from, to);
 
   const local = localEntries(localRows);
   const dikidiEntries = dikidiResult.ok

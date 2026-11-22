@@ -12,6 +12,7 @@ import { FAQ } from "@/components/FAQ"
 import { Contacts } from "@/components/Contacts"
 import { Footer } from "@/components/Footer"
 import { FloatingCTA } from "@/components/FloatingCTA"
+import Script from "next/script"
 import { Cities } from "@/components/Cities"
 import { services, benefits, reviews, faqs, galleryImages, citiesGeo } from "@/lib/data"
 
@@ -203,6 +204,19 @@ export default function Home() {
         />
         <FloatingCTA dikidiUrl={DIKIDI_URL} />
       </div>
+
+      <Script
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `(function(){
+            var iframe=null;
+            function getIframe(){ if(!iframe) iframe=document.querySelector('iframe[src^="/character.html"]'); return iframe; }
+            function send(type,x,y){ var f=getIframe(); if(f&&f.contentWindow){ var r=f.getBoundingClientRect(); f.contentWindow.postMessage({type:type,x:x-r.left,y:y-r.top},'*'); } }
+            document.addEventListener('pointermove',function(e){ send('pointer',e.clientX,e.clientY); },{passive:true});
+            document.addEventListener('pointerdown',function(e){ send('down',e.clientX,e.clientY); },{passive:true});
+          })();`,
+        }}
+      />
     </>
   )
 }

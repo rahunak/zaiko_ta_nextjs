@@ -53,7 +53,8 @@ export default async function BookPage({
         <div className="pointer-events-auto">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted transition hover:text-charcoal"
+            className="inline-flex items-center gap-2 text-sm font-medium transition hover:opacity-80"
+            style={{ color: '#3d2222' }}
           >
             ← На главную
           </Link>
@@ -73,6 +74,15 @@ export default async function BookPage({
 
             {bookedId ? (
               <div className="mt-6 rounded-2xl border border-border bg-white px-4 py-3 text-sm">
+                <div className="mb-3 aspect-[4/3] w-full overflow-hidden rounded-xl md:hidden">
+                  <iframe
+                    src="/character.html?embed=1"
+                    title="Анимация"
+                    className="h-full w-full border-0"
+                    style={{ pointerEvents: 'none' }}
+                    loading="lazy"
+                  />
+                </div>
                 Запись №{bookedId} создана. Мастер свяжется с вами при необходимости.
               </div>
             ) : null}
@@ -94,7 +104,7 @@ export default async function BookPage({
           __html: `(function(){
             var iframe=null;
             function getIframe(){ if(!iframe) iframe=document.querySelector('iframe[src^="/character.html"]'); return iframe; }
-            function send(type,x,y){ var f=getIframe(); if(f&&f.contentWindow) f.contentWindow.postMessage({type:type,x:x,y:y},'*'); }
+            function send(type,x,y){ var f=getIframe(); if(f&&f.contentWindow){ var r=f.getBoundingClientRect(); f.contentWindow.postMessage({type:type,x:x-r.left,y:y-r.top},'*'); } }
             document.addEventListener('pointermove',function(e){ send('pointer',e.clientX,e.clientY); },{passive:true});
             document.addEventListener('pointerdown',function(e){ send('down',e.clientX,e.clientY); },{passive:true});
             document.addEventListener('focusin',function(e){

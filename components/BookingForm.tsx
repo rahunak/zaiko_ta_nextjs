@@ -84,6 +84,7 @@ export default function BookingForm({ services }: { services: Service[] }) {
   const [viewDate, setViewDate] = useState<Date>(new Date());
   const [serviceOpen, setServiceOpen] = useState(false);
   const serviceRef = useRef<HTMLDivElement>(null);
+  const slotScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -246,9 +247,8 @@ export default function BookingForm({ services }: { services: Service[] }) {
                     setServiceId(s.id);
                     setServiceOpen(false);
                   }}
-                  className={`w-full border-b border-border px-3 py-2.5 text-left last:border-b-0 ${
-                    s.id === serviceId ? 'bg-cream' : 'hover:bg-cream'
-                  }`}
+                  className={`w-full border-b border-border px-3 py-2.5 text-left last:border-b-0 ${s.id === serviceId ? 'bg-cream' : 'hover:bg-cream'
+                    }`}
                 >
                   <span className="block font-medium text-charcoal">{s.name}</span>
                   <span className="block text-xs text-muted">
@@ -260,32 +260,9 @@ export default function BookingForm({ services }: { services: Service[] }) {
           )}
         </div>
       </div>
-
-      {/* Индикатор шагов */}
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <span
-          className={`rounded-full px-3 py-1 ${
-            step === 1 ? 'bg-rose-dark text-white' : 'bg-cream text-muted'
-          }`}
-          style={step === 1 ? { backgroundColor: '#B8627A' } : undefined}
-        >
-          1. Дата
-        </span>
-        <span className="text-muted">→</span>
-        <span
-          className={`rounded-full px-3 py-1 ${
-            step === 2 ? 'bg-rose-dark text-white' : 'bg-cream text-muted'
-          }`}
-          style={step === 2 ? { backgroundColor: '#B8627A' } : undefined}
-        >
-          2. Время
-        </span>
-      </div>
-
       {/* Шаг 1: выбор даты */}
       {step === 1 && (
         <div>
-          <span className="mb-2 block text-sm font-medium">Выберите дату</span>
           {loadingDates ? (
             <p className="text-sm text-muted">Загрузка дат…</p>
           ) : dates.length === 0 ? (
@@ -336,11 +313,10 @@ export default function BookingForm({ services }: { services: Service[] }) {
                       type="button"
                       disabled={disabled}
                       onClick={() => chooseDate(cell.date!, slotCount)}
-                      className={`aspect-square rounded-lg text-sm transition ${
-                        disabled
-                          ? 'cursor-not-allowed text-gray-300'
-                          : 'text-charcoal hover:bg-rose-light'
-                      }`}
+                      className={`aspect-square rounded-lg text-sm transition ${disabled
+                        ? 'cursor-not-allowed text-gray-300'
+                        : 'text-charcoal hover:bg-rose-light'
+                        }`}
                     >
                       <span className="block">{dayNum}</span>
                       {available && slotCount <= 3 ? (
@@ -385,26 +361,52 @@ export default function BookingForm({ services }: { services: Service[] }) {
           ) : slots.length === 0 ? (
             <p className="text-sm text-muted">Нет свободного времени на эту дату</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {slots.map((s) => {
-                const selected = s === selectedTime;
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSelectedTime(s)}
-                    className={`rounded-lg border px-2 py-2.5 text-sm font-medium transition ${
-                      selected
-                        ? 'border-rose-dark bg-rose-dark text-white'
-                        : 'border-border bg-white text-charcoal hover:border-rose'
-                    }`}
-                    style={selected ? { backgroundColor: '#B8627A' } : undefined}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => slotScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+                  className="shrink-0 rounded-full border border-border bg-white px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:border-rose"
+                  aria-label="Назад"
+                >
+                  ‹
+                </button>
+                <div
+                  ref={slotScrollRef}
+                  className="flex flex-1 gap-2 overflow-x-auto px-1 pb-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
+                  style={{ scrollbarWidth: 'none' }}
+                >
+                  {slots.map((s) => {
+                    const selected = s === selectedTime;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSelectedTime(s)}
+                        className={`min-w-[84px] snap-start rounded-2xl border px-4 py-3 text-base font-medium transition ${selected
+                          ? 'border-rose-dark bg-rose-dark text-white shadow-sm'
+                          : 'border-border bg-white text-charcoal hover:border-rose'
+                          }`}
+                        style={selected ? { backgroundColor: '#B8627A' } : undefined}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => slotScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+                  className="shrink-0 rounded-full border border-border bg-white px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:border-rose"
+                  aria-label="Вперёд"
+                >
+                  ›
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] text-muted">
+                Свайпните или используйте стрелки, чтобы выбрать время.
+              </p>
+            </>
           )}
         </div>
       )}

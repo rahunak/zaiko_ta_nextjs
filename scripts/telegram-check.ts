@@ -11,7 +11,7 @@
  *
  * Переменные берутся из окружения (bun сам подхватывает .env / .env.local),
  * либо передайте их явно:
- *   TELEGRAM_MASTER_BOT_TOKEN=... TELEGRAM_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
+ *   TELEGRAM_MASTER_BOT_TOKEN=... TELEGRAM_MASTER_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
  */
 
 import { Pool } from 'pg';
@@ -39,7 +39,7 @@ function mask(value: string): string {
 }
 
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_CHAT_ID ?? '';
+  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
   return raw
     .split(',')
     .map((value) => value.trim())
@@ -106,14 +106,14 @@ async function checkEnv(): Promise<void> {
   if (ids.length === 0) {
     report(
       'fail',
-      'TELEGRAM_CHAT_ID не задан',
+      'TELEGRAM_MASTER_CHAT_ID не задан',
       'Нужен числовой chat_id личного чата мастера с ботом (не @username канала).',
     );
   } else {
     const bad = ids.filter((id) => !/^-?\d+$/.test(id));
     report(
       bad.length === 0 ? 'ok' : 'fail',
-      `TELEGRAM_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
+      `TELEGRAM_MASTER_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
       bad.length ? `Не похоже на chat_id: ${bad.join(', ')}. Узнать: @userinfobot.` : undefined,
     );
   }
@@ -163,6 +163,28 @@ async function checkBots(): Promise<void> {
     report('ok', `Токен админского бота рабочий: @${bot.username ?? '?'}`);
   } else {
     report('fail', 'getMe админского бота не прошёл — токен неверный или отозван', me.description);
+  }
+
+  // Вебхук админскому боту не нужен: он только отправляет сообщения. Если он там
+  // стоит, /start мастера уходит в обработчик клиентского бота — это частая ошибка
+  // при настройке двух ботов, поэтому проверяем явно.
+  const adminInfo = await telegram(admin, 'getWebhookInfo');
+  if (!adminInfo.ok) {
+    report('warn', 'getWebhookInfo админского бота не прошёл', adminInfo.description);
+  } else {
+    const hook = adminInfo.result as { url?: string; pending_update_count?: number };
+    report(
+      hook.url ? 'fail' : 'ok',
+      hook.url
+        ? `На админском боте стоит вебхук: ${hook.url}`
+        : 'На админском боте вебхука нет (так и должно быть)',
+      hook.url
+        ? 'Снимите его: curl "https://api.telegram.org/bot<токен zaiko_ta_admin_bot>/deleteWebhook"'
+        : undefined,
+    );
+    if (hook.pending_update_count && hook.pending_update_count > 0) {
+      report('warn', `Админский бот: ${hook.pending_update_count} необработанных апдейтов`);
+    }
   }
 
   const client = clientToken();

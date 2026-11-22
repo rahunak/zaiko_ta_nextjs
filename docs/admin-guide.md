@@ -69,7 +69,7 @@
 2. Узнать свой chat_id: написать боту `@userinfobot` — он пришлёт число вида `5151069944`.
 3. В окружении сервера (Vercel → Environment Variables):
    - `TELEGRAM_MASTER_BOT_TOKEN` — токен `zaiko_ta_admin_bot` от `@BotFather`;
-   - `TELEGRAM_CHAT_ID` — числовой chat_id мастера; несколько — через запятую.
+   - `TELEGRAM_MASTER_CHAT_ID` — числовой chat_id мастера; несколько — через запятую.
 4. Вебхук админскому боту **не нужен**: он только отправляет сообщения.
 
 ### Бот напоминаний клиентам
@@ -143,7 +143,7 @@ curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_bot>/setWebhook?url=https
 2. Пишет боту  @userinfobot  → получает свой chat_id (число, например  5151069944 ).
 3. В Vercel → Environment Variables:
 TELEGRAM_MASTER_BOT_TOKEN   = <токен zaiko_ta_admin_bot от @BotFather>
-TELEGRAM_CHAT_ID     = 5151069944
+TELEGRAM_MASTER_CHAT_ID = 5151069944
 4. Вебхук этому боту не нужен — он только отправляет. Более того, если он там уже стоит, его надо снять, иначе на  /start  мастера бот будет отвечать «Этот бот присылает напоминания о записи»:
 // bash
 curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_admin_bot>/deleteWebhook"

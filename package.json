@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:full": "trap 'kill 0' EXIT; bun run api-anything:serve & next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "db:init": "bun run scripts/db-init.ts",

@@ -76,12 +76,31 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
  */
 const DEFAULT_BOT_USERNAME = 'zaiko_ta_bot';
 
+/** Telegram usernames: 5-32 chars, letters, digits and underscore. */
+const BOT_USERNAME_RE = /^[a-z0-9_]{5,32}$/i;
+
 /**
  * Имя бота напоминаний клиентам: именно он открывается по кнопке на /book.
+ *
+ * Значения из env часто вставляют с кавычками (`"zaiko_ta_bot"`), а такой текст в URL
+ * ломает deep-link, поэтому снимаем кавычки и `@` и проверяем формат. Некорректное
+ * значение возвращает null: лучше спрятать кнопку, чем показать битую ссылку.
  */
 export function botUsername(): string | null {
-  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '').trim().replace(/^@/, '');
-  return value || DEFAULT_BOT_USERNAME;
+  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '')
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .replace(/^@/, '')
+    .trim();
+
+  if (!value) {
+    return DEFAULT_BOT_USERNAME;
+  }
+  if (!BOT_USERNAME_RE.test(value)) {
+    console.warn(`[telegram] TELEGRAM_CLIENT_BOT_USERNAME is not a valid bot username: ${value}`);
+    return null;
+  }
+  return value;
 }
 
 /** Отправка сообщения конкретному клиенту (по chat_id, полученному в /start). */

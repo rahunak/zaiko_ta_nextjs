@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { sendTelegramToChat } from '@/lib/telegram';
-import { clientReminderText, CLIENT_REMINDER_HOURS } from '@/lib/notifications/client-reminders';
+import {
+  clientReminderText,
+  clientReminderLeadText,
+  CLIENT_REMINDER_HOURS,
+} from '@/lib/notifications/client-reminders';
 import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
 
 /**
@@ -9,11 +13,15 @@ import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
  *
  * Клиент после записи нажимает «Получить напоминание в Telegram», открывает бота
  * с deep-link `?start=<token>` и жмёт /start. Здесь мы привязываем chat_id к записи
- * и отвечаем подтверждением; за 2 часа до визита напоминание отправит планировщик.
+ * и отвечаем подтверждением; напоминание за CLIENT_REMINDER_HOURS до визита отправит планировщик.
+ *
+ * Вебхук ставится на бота напоминаний клиентам (zaiko_ta_bot), а не на админского:
+ * админский бот только пишет мастеру по его chat_id, ему вебхук не нужен.
  *
  * Настройка (один раз, после деплоя):
- *   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_WEBHOOK_SECRET (опционально)
- *   curl "https://api.telegram.org/bot<token>/setWebhook?url=https://zaiko.by/api/telegram/webhook&secret_token=<secret>"
+ *   TELEGRAM_CLIENT_BOT_TOKEN, TELEGRAM_CLIENT_BOT_USERNAME,
+ *   TELEGRAM_CLIENT_WEBHOOK_SECRET (или старый TELEGRAM_WEBHOOK_SECRET)
+ *   curl "https://api.telegram.org/bot<токен zaiko_ta_bot>/setWebhook?url=https://zaiko.by/api/telegram/webhook&secret_token=<secret>"
  */
 
 type TelegramUpdate = {
@@ -37,7 +45,8 @@ const SITE = 'https://zaiko.by';
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Если секрет задан — проверяем заголовок, который Telegram присылает при setWebhook.
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const secret =
+    process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET;
   if (secret && request.headers.get('x-telegram-bot-api-secret-token') !== secret) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
@@ -119,7 +128,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     [
       'Напоминание включено.',
       `Запись: ${belarusLongDate(startsAt)}, ${belarusTime(startsAt)} — ${appointment.service_name}.`,
-      `Напомню за ${CLIENT_REMINDER_HOURS} часа.`,
+      `Напомню ${clientReminderLeadText()}.`,
     ].join('\n'),
   );
 }

@@ -173,7 +173,7 @@ export default async function BookPage({
                       Получить напоминание в Telegram
                     </a>
                     <p className="mt-1.5 text-[11px] text-muted">
-                      Откройте бота и нажмите /start — напомним за 2 часа до визита.
+                      Откройте бота и нажмите /start — напомним за час до визита.
                     </p>
                   </>
                 ) : null}

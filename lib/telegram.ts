@@ -9,7 +9,22 @@ function chatIds(): string[] {
 }
 
 export function isTelegramConfigured(): boolean {
-  return Boolean(process.env.TELEGRAM_BOT_TOKEN && chatIds().length > 0);
+  return Boolean(masterBotToken() && chatIds().length > 0);
+}
+
+/** Токен админского бота: уведомления мастеру о новых записях и скором приёме. */
+function masterBotToken(): string | undefined {
+  return process.env.TELEGRAM_BOT_TOKEN;
+}
+
+/**
+ * Токен бота напоминаний клиентам (отдельный, публичный бот, на который
+ * подписываются клиенты). Отдельный бот нужен потому, что Telegram не даёт
+ * писать пользователю, который не начинал диалог именно с этим ботом.
+ * Если отдельный токен не задан — работает старый вариант с одним ботом.
+ */
+export function clientBotToken(): string | undefined {
+  return process.env.TELEGRAM_CLIENT_BOT_TOKEN || masterBotToken();
 }
 
 function escapeHtml(value: string): string {
@@ -25,7 +40,7 @@ function escapeHtml(value: string): string {
  * если Telegram ответил ошибкой — иначе оно потеряется навсегда.
  */
 export async function sendTelegramMessage(text: string): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = masterBotToken();
   const recipients = chatIds();
 
   if (!token || recipients.length === 0) {
@@ -61,14 +76,20 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
  */
 const DEFAULT_BOT_USERNAME = 'zaiko_ta_bot';
 
+/**
+ * Имя бота напоминаний клиентам: именно он открывается по кнопке на /book.
+ * TELEGRAM_BOT_USERNAME оставлен как fallback для старой одно-ботовой настройки.
+ */
 export function botUsername(): string | null {
-  const value = (process.env.TELEGRAM_BOT_USERNAME ?? '').trim().replace(/^@/, '');
+  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? process.env.TELEGRAM_BOT_USERNAME ?? '')
+    .trim()
+    .replace(/^@/, '');
   return value || DEFAULT_BOT_USERNAME;
 }
 
 /** Отправка сообщения конкретному клиенту (по chat_id, полученному в /start). */
 export async function sendTelegramToChat(chatId: string, text: string): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = clientBotToken();
   if (!token || !chatId) {
     return false;
   }

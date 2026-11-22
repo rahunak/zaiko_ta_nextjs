@@ -3,7 +3,12 @@ import { sendTelegramToChat } from '@/lib/telegram';
 import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
 
 /** За сколько до визита отправляем напоминание клиенту. */
-export const CLIENT_REMINDER_HOURS = 2;
+export const CLIENT_REMINDER_HOURS = 1;
+
+/** Человеческая форма срока для текстов бота: «за 1 час», «за 2 часа». */
+export function clientReminderLeadText(): string {
+  return CLIENT_REMINDER_HOURS === 1 ? 'за 1 час' : `за ${CLIENT_REMINDER_HOURS} часа`;
+}
 
 type ClientRow = {
   id: string;

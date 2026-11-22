@@ -1,6 +1,6 @@
 /**
  * Диагностика Telegram-уведомлений: мастеру (новая запись, «скоро приём»)
- * и клиенту (напоминание за 2 часа).
+ * и клиенту (напоминание за час).
  *
  * Скрипт только читает состояние и, по флагу --send, отправляет одно тестовое
  * сообщение. Ничего в БД не меняет, напоминания не рассылает.
@@ -17,6 +17,10 @@
 import { Pool } from 'pg';
 
 const TELEGRAM_API = 'https://api.telegram.org';
+
+/** Пороги напоминаний: должны совпадать с кодом приложения. */
+const MASTER_REMINDER_HOURS = 1;
+const CLIENT_REMINDER_HOURS = 1;
 const WANT_SEND = process.argv.includes('--send');
 
 type Status = 'ok' | 'warn' | 'fail';
@@ -48,8 +52,24 @@ type TelegramResponse = {
   result?: Record<string, unknown>;
 };
 
-async function telegram(method: string, body?: Record<string, unknown>): Promise<TelegramResponse> {
-  const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+/** Токен админского бота: уведомления мастеру. */
+function masterToken(): string {
+  return process.env.TELEGRAM_BOT_TOKEN ?? '';
+}
+
+/**
+ * Токен бота напоминаний клиентам. Без отдельного токена клиентские
+ * напоминания уходят от админского бота, которого клиент не запускал.
+ */
+function clientToken(): string {
+  return process.env.TELEGRAM_CLIENT_BOT_TOKEN || masterToken();
+}
+
+async function telegram(
+  token: string,
+  method: string,
+  body?: Record<string, unknown>,
+): Promise<TelegramResponse> {
   const response = await fetch(`${TELEGRAM_API}/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,11 +81,25 @@ async function telegram(method: string, body?: Record<string, unknown>): Promise
 async function checkEnv(): Promise<void> {
   console.log('\n— Окружение —');
 
-  const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+  const token = masterToken();
   if (!token) {
-    report('fail', 'TELEGRAM_BOT_TOKEN не задан', 'Без токена не работают ни уведомления мастеру, ни бот.');
+    report(
+      'fail',
+      'TELEGRAM_BOT_TOKEN не задан (админский бот)',
+      'Без него не уходят уведомления мастеру.',
+    );
   } else {
-    report('ok', `TELEGRAM_BOT_TOKEN задан (${mask(token)})`);
+    report('ok', `TELEGRAM_BOT_TOKEN задан, админский бот (${mask(token)})`);
+  }
+
+  if (!process.env.TELEGRAM_CLIENT_BOT_TOKEN) {
+    report(
+      'warn',
+      'TELEGRAM_CLIENT_BOT_TOKEN не задан — напоминания клиентам пойдут от админского бота',
+      'Клиент его не запускал, Telegram ответит «chat not found». Укажите токен zaiko_ta_bot.',
+    );
+  } else {
+    report('ok', `TELEGRAM_CLIENT_BOT_TOKEN задан, бот клиентов (${mask(process.env.TELEGRAM_CLIENT_BOT_TOKEN)})`);
   }
 
   const ids = chatIds();
@@ -84,21 +118,29 @@ async function checkEnv(): Promise<void> {
     );
   }
 
-  const usernameEnv = (process.env.TELEGRAM_BOT_USERNAME ?? '').trim().replace(/^@/, '');
+  const usernameEnv = (
+    process.env.TELEGRAM_CLIENT_BOT_USERNAME ??
+    process.env.TELEGRAM_BOT_USERNAME ??
+    ''
+  )
+    .trim()
+    .replace(/^@/, '');
   if (!usernameEnv) {
     report(
       'warn',
-      'TELEGRAM_BOT_USERNAME не задан — сайт подставит в кнопку имя по умолчанию `zaiko_ta_bot`',
-      'Если бот называется иначе, кнопка «Получить напоминание в Telegram» на /book ведёт в пустоту.',
+      'Имя клиентского бота не задано — сайт подставит `zaiko_ta_bot`',
+      'Задайте TELEGRAM_CLIENT_BOT_USERNAME. Если имя не совпадёт с реальным ботом, кнопка на /book ведёт в пустоту.',
     );
   } else {
-    report('ok', `TELEGRAM_BOT_USERNAME=${usernameEnv}`);
+    report('ok', `Имя бота для кнопки на /book: ${usernameEnv}`);
   }
 
-  if (!process.env.TELEGRAM_WEBHOOK_SECRET) {
-    report('warn', 'TELEGRAM_WEBHOOK_SECRET не задан', 'Вебхук принимает запросы от кого угодно.');
+  const webhookSecret =
+    process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    report('warn', 'TELEGRAM_CLIENT_WEBHOOK_SECRET не задан', 'Вебхук принимает запросы от кого угодно.');
   } else {
-    report('ok', 'TELEGRAM_WEBHOOK_SECRET задан');
+    report('ok', 'Секрет вебхука клиентского бота задан');
   }
 
   if (!process.env.CRON_SECRET) {
@@ -112,23 +154,50 @@ async function checkEnv(): Promise<void> {
   }
 }
 
-async function checkBot(): Promise<void> {
-  if (!process.env.TELEGRAM_BOT_TOKEN) {
+async function checkBots(): Promise<void> {
+  const admin = masterToken();
+  if (!admin) {
     return;
   }
 
-  console.log('\n— Bot API —');
+  console.log('\n— Админский бот (уведомления мастеру) —');
 
-  const me = await telegram('getMe');
+  const me = await telegram(admin, 'getMe');
   if (me.ok) {
     const bot = me.result as { username?: string; first_name?: string };
-    report('ok', `Бот доступен: @${bot.username ?? '?'} (${bot.first_name ?? ''})`);
+    report('ok', `Токен админского бота рабочий: @${bot.username ?? '?'}`);
   } else {
-    report('fail', 'getMe не прошёл — токен неверный или отозван', me.description);
+    report('fail', 'getMe админского бота не прошёл — токен неверный или отозван', me.description);
+  }
+
+  const client = clientToken();
+  if (!client) {
     return;
   }
 
-  const info = await telegram('getWebhookInfo');
+  console.log('\n— Бот напоминаний клиентам —');
+
+  const clientMe = await telegram(client, 'getMe');
+  if (!clientMe.ok) {
+    report('fail', 'getMe клиентского бота не прошёл — токен неверный или отозван', clientMe.description);
+    return;
+  }
+
+  const clientBot = clientMe.result as { username?: string };
+  report('ok', `Токен клиентского бота рабочий: @${clientBot.username ?? '?'}`);
+
+  const expected = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '').trim().replace(/^@/, '');
+  if (expected && clientBot.username && clientBot.username !== expected) {
+    report(
+      'fail',
+      `Имя в TELEGRAM_CLIENT_BOT_USERNAME (${expected}) не совпадает с ботом токена (@${clientBot.username})`,
+      'Кнопка на /book ведёт на другого бота — исправьте переменную.',
+    );
+  } else if (expected) {
+    report('ok', 'Имя бота и токен относятся к одному боту');
+  }
+
+  const info = await telegram(client, 'getWebhookInfo');
   if (!info.ok) {
     report('fail', 'getWebhookInfo не прошёл', info.description);
   } else {
@@ -141,11 +210,11 @@ async function checkBot(): Promise<void> {
     if (!hook.url) {
       report(
         'fail',
-        'Вебхук НЕ зарегистрирован — /start в боте ничего не сделает',
+        'Вебхук клиентского бота НЕ зарегистрирован — /start ничего не сделает',
         'Нажмите /start в боте, клик не дойдёт до сайта, client_chat_id не запишется.',
       );
     } else {
-      report('ok', `Вебхук: ${hook.url}`);
+      report('ok', `Вебхук клиентского бота: ${hook.url}`);
     }
 
     if (hook.pending_update_count && hook.pending_update_count > 0) {
@@ -163,16 +232,17 @@ async function checkBot(): Promise<void> {
 }
 
 async function checkMasterDelivery(): Promise<void> {
-  if (!process.env.TELEGRAM_BOT_TOKEN || chatIds().length === 0) {
+  const admin = masterToken();
+  if (!admin || chatIds().length === 0) {
     return;
   }
 
-  console.log('\n— Доставка мастеру —');
+  console.log('\n— Доставка мастеру (админский бот) —');
 
   for (const chatId of chatIds()) {
     if (!WANT_SEND) {
       // getChat не отправляет сообщение, но показывает, доступен ли чат боту.
-      const chat = await telegram('getChat', { chat_id: chatId });
+      const chat = await telegram(admin, 'getChat', { chat_id: chatId });
       if (chat.ok) {
         const result = chat.result as { type?: string; username?: string; first_name?: string };
         report('ok', `chat_id ${chatId} доступен (${result.type ?? '?'})`);
@@ -186,7 +256,7 @@ async function checkMasterDelivery(): Promise<void> {
       continue;
     }
 
-    const sent = await telegram('sendMessage', {
+    const sent = await telegram(admin, 'sendMessage', {
       chat_id: chatId,
       text: 'Проверка уведомлений: канал «мастер» работает.',
     });
@@ -282,8 +352,9 @@ async function checkDatabase(): Promise<void> {
 
     for (const row of upcoming.rows) {
       const hoursLeft = (new Date(row.starts_at).getTime() - now) / 3_600_000;
-      const masterDue = hoursLeft <= 1 && !row.reminder_sent_at;
-      const clientDue = hoursLeft <= 2 && row.client_chat_id && !row.client_reminder_sent_at;
+      const masterDue = hoursLeft <= MASTER_REMINDER_HOURS && !row.reminder_sent_at;
+      const clientDue =
+        hoursLeft <= CLIENT_REMINDER_HOURS && row.client_chat_id && !row.client_reminder_sent_at;
       const flags = [
         masterDue ? 'мастеру пора' : row.reminder_sent_at ? 'мастеру отправлено' : '',
         !row.client_chat_id
@@ -304,7 +375,7 @@ async function checkDatabase(): Promise<void> {
 
     const dueNow = upcoming.rows.filter(
       (row) =>
-        (new Date(row.starts_at).getTime() - now) / 3_600_000 <= 2 &&
+        (new Date(row.starts_at).getTime() - now) / 3_600_000 <= CLIENT_REMINDER_HOURS &&
         !row.client_reminder_sent_at &&
         row.client_chat_id,
     );
@@ -331,7 +402,7 @@ async function main(): Promise<void> {
 
   try {
     await checkEnv();
-    await checkBot();
+    await checkBots();
     await checkMasterDelivery();
     await checkDatabase();
   } catch (error) {

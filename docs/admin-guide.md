@@ -68,8 +68,8 @@
    не сможет написать первым (ошибка `chat not found`).
 2. Узнать свой chat_id: написать боту `@userinfobot` — он пришлёт число вида `5151069944`.
 3. В окружении сервера (Vercel → Environment Variables):
-   - `TELEGRAM_BOT_TOKEN` — токен `zaiko_ta_admin_bot` от `@BotFather`;
-   - `TELEGRAM_MASTER_CHAT_ID` — числовой chat_id мастера; несколько — через запятую.
+   - `TELEGRAM_MASTER_BOT_TOKEN` — токен `zaiko_ta_admin_bot` от `@BotFather`;
+   - `TELEGRAM_CHAT_ID` — числовой chat_id мастера; несколько — через запятую.
 4. Вебхук админскому боту **не нужен**: он только отправляет сообщения.
 
 ### Бот напоминаний клиентам
@@ -125,3 +125,68 @@ curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_bot>/setWebhook?url=https
 Ссылка в футере ведёт на `/privacy` — там опубликован документ о сборе и обработке данных
 (оператор, какие данные, цели, сроки, права, контакты). Текст типовой: при необходимости
 мастер согласует формулировки с юристом, структура документа уже на месте.
+
+
+
+
+
+
+
+
+
+--------------------------------------------
+Настройка: шаг за шагом
+
+Бот 1 —  zaiko_ta_admin_bot  (мастеру)
+
+1. Мастер открывает  zaiko_ta_admin_bot  и жмёт Start.
+2. Пишет боту  @userinfobot  → получает свой chat_id (число, например  5151069944 ).
+3. В Vercel → Environment Variables:
+TELEGRAM_MASTER_BOT_TOKEN   = <токен zaiko_ta_admin_bot от @BotFather>
+TELEGRAM_CHAT_ID     = 5151069944
+4. Вебхук этому боту не нужен — он только отправляет. Более того, если он там уже стоит, его надо снять, иначе на  /start  мастера бот будет отвечать «Этот бот присылает напоминания о записи»:
+// bash
+curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_admin_bot>/deleteWebhook"
+
+Бот 2 —  zaiko_ta_bot  (клиентам)
+
+1. В Vercel → Environment Variables добавить:
+TELEGRAM_CLIENT_BOT_TOKEN      = <токен zaiko_ta_bot от @BotFather>
+TELEGRAM_CLIENT_BOT_USERNAME   = zaiko_ta_bot
+TELEGRAM_CLIENT_WEBHOOK_SECRET = <любая случайная строка>
+2. Зарегистрировать вебхук именно на клиентском боте:
+// bash
+curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_bot>/setWebhook?url=https://zaiko.by/api/telegram/webhook&secret_token=<ТЕЛЕЖЕ СТРОКА>"
+3. Redeploy на Vercel.
+
+Расписание напоминаний (обязательно)
+
+На Vercel встроенный планировщик не работает — функция замораживается после ответа. Нужен внешний вызов  GET https://zaiko.by/api/cron/reminders  с заголовком  Authorization: Bearer $CRON_SECRET  раз в 10–15 минут (Vercel Cron в  vercel.json  или cron-job.org).  CRON_SECRET  у тебя уже задан.
+
+────────────────────────────────────────────────────────────────────────────────
+
+Проверка
+
+1. Автоматическая проверка всего сразу:
+
+// bash
+bun run scripts/telegram-check.ts          # только диагностика
+bun run scripts/telegram-check.ts --send   # + тестовое сообщение мастеру
+
+Скрипт проверяет: оба токена, совпадение имени бота с токеном, вебхук, доступность chat_id, колонки БД и какие напоминания должны были уйти.
+
+2. Живой сценарий (2 минуты):
+1. Записаться на  /book  на завтра → мастеру в админского бота приходит «Новая онлайн-запись». Это работает без cron.
+2. Нажать кнопку «Получить напоминание в Telegram» → откроется  zaiko_ta_bot  →  /start  → ответ «Напоминание включено» с датой и услугой.
+3. В БД у записи появился  client_chat_id  — это видно в выводе скрипта.
+4. Напоминание мастеру: создать запись на <60 минут вперёд и открыть  /admin/schedule  — страница сама вызывает рассылку.
+5. Напоминание клиенту: запись на 1–2 часа вперёд + клиент нажал  /start , затем
+// bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://zaiko.by/api/cron/reminders
+# {"sent":0,"sentToClients":1}
+
+────────────────────────────────────────────────────────────────────────────────
+
+Два расхождения, которые нужно решить тебе
+
+1. Сейчас вебхук стоит на админском боте, а должен стоять на  zaiko_ta_bot  — иначе  /start  клиентов не доходит до сайта, и  client_chat_id  никогда не заполнится. Токен  zaiko_ta_bot  есть только у тебя, поэтому этот шаг за тобой (команда выше).

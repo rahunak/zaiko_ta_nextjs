@@ -1,7 +1,7 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
+  const raw = process.env.TELEGRAM_CHAT_ID ?? '';
   return raw
     .split(',')
     .map((value) => value.trim())
@@ -14,7 +14,7 @@ export function isTelegramConfigured(): boolean {
 
 /** Токен админского бота: уведомления мастеру о новых записях и скором приёме. */
 function masterBotToken(): string | undefined {
-  return process.env.TELEGRAM_BOT_TOKEN;
+  return process.env.TELEGRAM_MASTER_BOT_TOKEN;
 }
 
 /**
@@ -78,12 +78,9 @@ const DEFAULT_BOT_USERNAME = 'zaiko_ta_bot';
 
 /**
  * Имя бота напоминаний клиентам: именно он открывается по кнопке на /book.
- * TELEGRAM_BOT_USERNAME оставлен как fallback для старой одно-ботовой настройки.
  */
 export function botUsername(): string | null {
-  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? process.env.TELEGRAM_BOT_USERNAME ?? '')
-    .trim()
-    .replace(/^@/, '');
+  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '').trim().replace(/^@/, '');
   return value || DEFAULT_BOT_USERNAME;
 }
 

@@ -11,7 +11,7 @@
  *
  * Переменные берутся из окружения (bun сам подхватывает .env / .env.local),
  * либо передайте их явно:
- *   TELEGRAM_BOT_TOKEN=... TELEGRAM_MASTER_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
+ *   TELEGRAM_MASTER_BOT_TOKEN=... TELEGRAM_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
  */
 
 import { Pool } from 'pg';
@@ -39,7 +39,7 @@ function mask(value: string): string {
 }
 
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
+  const raw = process.env.TELEGRAM_CHAT_ID ?? '';
   return raw
     .split(',')
     .map((value) => value.trim())
@@ -54,7 +54,7 @@ type TelegramResponse = {
 
 /** Токен админского бота: уведомления мастеру. */
 function masterToken(): string {
-  return process.env.TELEGRAM_BOT_TOKEN ?? '';
+  return process.env.TELEGRAM_MASTER_BOT_TOKEN ?? '';
 }
 
 /**
@@ -85,11 +85,11 @@ async function checkEnv(): Promise<void> {
   if (!token) {
     report(
       'fail',
-      'TELEGRAM_BOT_TOKEN не задан (админский бот)',
+      'TELEGRAM_MASTER_BOT_TOKEN не задан (админский бот)',
       'Без него не уходят уведомления мастеру.',
     );
   } else {
-    report('ok', `TELEGRAM_BOT_TOKEN задан, админский бот (${mask(token)})`);
+    report('ok', `TELEGRAM_MASTER_BOT_TOKEN задан, админский бот (${mask(token)})`);
   }
 
   if (!process.env.TELEGRAM_CLIENT_BOT_TOKEN) {
@@ -106,23 +106,19 @@ async function checkEnv(): Promise<void> {
   if (ids.length === 0) {
     report(
       'fail',
-      'TELEGRAM_MASTER_CHAT_ID не задан',
+      'TELEGRAM_CHAT_ID не задан',
       'Нужен числовой chat_id личного чата мастера с ботом (не @username канала).',
     );
   } else {
     const bad = ids.filter((id) => !/^-?\d+$/.test(id));
     report(
       bad.length === 0 ? 'ok' : 'fail',
-      `TELEGRAM_MASTER_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
+      `TELEGRAM_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
       bad.length ? `Не похоже на chat_id: ${bad.join(', ')}. Узнать: @userinfobot.` : undefined,
     );
   }
 
-  const usernameEnv = (
-    process.env.TELEGRAM_CLIENT_BOT_USERNAME ??
-    process.env.TELEGRAM_BOT_USERNAME ??
-    ''
-  )
+  const usernameEnv = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '')
     .trim()
     .replace(/^@/, '');
   if (!usernameEnv) {
@@ -135,8 +131,7 @@ async function checkEnv(): Promise<void> {
     report('ok', `Имя бота для кнопки на /book: ${usernameEnv}`);
   }
 
-  const webhookSecret =
-    process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET;
+  const webhookSecret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
   if (!webhookSecret) {
     report('warn', 'TELEGRAM_CLIENT_WEBHOOK_SECRET не задан', 'Вебхук принимает запросы от кого угодно.');
   } else {

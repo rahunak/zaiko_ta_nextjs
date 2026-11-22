@@ -20,7 +20,7 @@ import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
  *
  * Настройка (один раз, после деплоя):
  *   TELEGRAM_CLIENT_BOT_TOKEN, TELEGRAM_CLIENT_BOT_USERNAME,
- *   TELEGRAM_CLIENT_WEBHOOK_SECRET (или старый TELEGRAM_WEBHOOK_SECRET)
+ *   TELEGRAM_CLIENT_WEBHOOK_SECRET
  *   curl "https://api.telegram.org/bot<токен zaiko_ta_bot>/setWebhook?url=https://zaiko.by/api/telegram/webhook&secret_token=<secret>"
  */
 
@@ -45,8 +45,7 @@ const SITE = 'https://zaiko.by';
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Если секрет задан — проверяем заголовок, который Telegram присылает при setWebhook.
-  const secret =
-    process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET ?? process.env.TELEGRAM_WEBHOOK_SECRET;
+  const secret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
   if (secret && request.headers.get('x-telegram-bot-api-secret-token') !== secret) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }

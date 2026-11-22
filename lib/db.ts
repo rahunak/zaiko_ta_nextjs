@@ -9,11 +9,52 @@ export const DEFAULT_DATABASE_URL =
 
 const globalForDb = globalThis as unknown as { __zaikoAdminPool?: Pool };
 
+/**
+ * Supabase pooler в session-режиме (порт 5432 у *.pooler.supabase.com) отдаёт
+ * ~15 соединений на проект и держит каждое за клиентом — несколько процессов
+ * (dev, build, preview) выбирают лимит и получают EMAXCONNSESSION.
+ * Для рантайма нужен transaction pooler (порт 6543); 5432 — только для миграций.
+ */
+function resolveConnectionString(raw: string): string {
+  const at = raw.lastIndexOf('@');
+  if (at === -1) return raw;
+
+  const tail = raw.slice(at + 1);
+  if (!tail.includes('pooler.supabase.com:5432')) return raw;
+
+  console.warn(
+    '[db] session pooler Supabase (5432) заменён на transaction pooler (6543): ' +
+      'в session-режиме на проект даётся ~15 соединений. Для миграций используйте отдельный direct URL.',
+  );
+
+  // Меняем только хост/порт: логин и пароль остаются как есть, без перекодирования.
+  return raw.slice(0, at + 1) + tail.replace('pooler.supabase.com:5432', 'pooler.supabase.com:6543');
+}
+
+const connectionString = resolveConnectionString(
+  process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
+);
+
+/** Размер пула: 3 по умолчанию — безопасно для pooler-а и для локальной БД. */
+const poolMax = Number.parseInt(process.env.PG_POOL_MAX ?? '3', 10);
+
 function createPool(): Pool {
-  return new Pool({
-    connectionString: process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
-    max: 5,
+
+  const created = new Pool({
+    connectionString,
+    max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 3,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    application_name: 'zaiko-admin',
   });
+
+  // Без обработчика ошибка простаивающего соединения роняет процесс.
+  created.on('error', (error) => {
+    console.error('[db] ошибка соединения в пуле:', error.message);
+  });
+
+  return created;
 }
 
 const pool = globalForDb.__zaikoAdminPool ?? createPool();

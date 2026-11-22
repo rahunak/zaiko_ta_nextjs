@@ -50,3 +50,27 @@ pg_restore --no-owner --no-privileges -d "<direct uri>" zaiko.dump
   VPN или запускайте `db:init` на Vercel через one-off.
 - `DATABASE_URL` и пароль БД — секреты: только в env, не в репозиторий. `.env.example` обновлять
   можно (без значений).
+
+## Если появилась ошибка `EMAXCONNSESSION` (max clients reached in session mode)
+
+`error: (EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15`
+означает, что приложение подключено к **session pooler** Supabase (порт **5432**). В этом режиме
+на проект отводится ~15 соединений, и каждое удерживается за клиентом: dev-сервер, сборка и
+несколько инстансов выбирают лимит за минуты.
+
+Что сделано в коде (`lib/db.ts`):
+
+- если в `DATABASE_URL` хост `*.pooler.supabase.com` и порт `5432`, порт автоматически меняется
+  на `6543` (transaction pooler) с предупреждением в логе — пароль и логин не перекодируются;
+- размер пула по умолчанию 3 (`PG_POOL_MAX`, можно уменьшить до 1–2 для serverless);
+- добавлены `idleTimeoutMillis`, `connectionTimeoutMillis`, `keepAlive` и обработчик ошибок
+  простаивающих соединений (без него такая ошибка роняет процесс).
+
+Рекомендуется всё же прописать правильный URL явно:
+
+```
+DATABASE_URL=postgres://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require
+```
+
+Прямое подключение (порт 5432, `db.<project-ref>.supabase.co`) — только для миграций и `db:init`,
+в рантайме не использовать.

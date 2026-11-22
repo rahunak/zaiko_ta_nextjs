@@ -78,3 +78,32 @@ alter table dikidi_auth add column if not exists last_sync_hash text;
 create index if not exists appointments_starts_idx on appointments (starts_at);
 create index if not exists appointments_source_idx on appointments (source);
 create index if not exists appointments_cancelled_idx on appointments (cancelled_at);
+
+-- Расписание мастера для онлайн-записи (/book).
+create table if not exists master_schedule_default (
+  id smallint primary key check (id = 1),
+  is_working boolean not null default true,
+  -- ISO-дни недели: 1=Пн ... 7=Вс
+  working_days smallint[] not null default '{1,2,3,4,5}',
+  work_start time not null default '10:00',
+  work_end time not null default '19:00',
+  break_start time,
+  break_end time,
+  updated_at timestamptz not null default now()
+);
+
+insert into master_schedule_default (id) values (1)
+  on conflict (id) do nothing;
+
+create table if not exists master_schedule_overrides (
+  date date primary key,
+  is_working boolean not null default true,
+  work_start time,
+  work_end time,
+  break_start time,
+  break_end time,
+  note text,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists master_schedule_overrides_date_idx on master_schedule_overrides (date);

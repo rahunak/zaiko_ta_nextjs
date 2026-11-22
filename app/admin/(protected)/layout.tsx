@@ -27,6 +27,12 @@ export default async function ProtectedAdminLayout({
               >
                 Расписание
               </Link>
+              <Link
+                href="/admin/availability"
+                className="text-charcoal hover:text-rose-dark"
+              >
+                График
+              </Link>
             </nav>
           </div>
 

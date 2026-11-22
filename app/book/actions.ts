@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { query } from '@/lib/db';
 import { checkDikidiSlot } from '@/lib/dikidi/availability';
+import { isSlotAvailable } from '@/lib/availability';
 import { sendAppointmentToDikidi } from '@/lib/dikidi/send';
 import { belarusDateKey, toBelarusDate } from '@/lib/dikidi/time';
 import { withQuery } from '@/lib/url';
@@ -61,6 +62,11 @@ export async function bookAppointment(formData: FormData): Promise<void> {
   const service = serviceRows[0];
   if (!service) {
     redirectWith({ error: 'invalid_service' });
+  }
+
+  const slotOk = await isSlotAvailable(date, time, service.duration_min);
+  if (!slotOk) {
+    redirectWith({ error: 'slot_unavailable' });
   }
 
   const { rows: inserted } = await query<{ id: string }>(

@@ -22,7 +22,7 @@ if (process.env.NODE_ENV !== 'production') {
   globalForDb.__zaikoAdminPool = pool;
 }
 
-type QueryValue = string | number | boolean | null | Date;
+type QueryValue = string | number | boolean | null | Date | string[] | number[];
 
 export function query<T extends QueryResultRow = QueryResultRow>(
   text: string,

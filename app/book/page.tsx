@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
-import { todayBelarus } from '@/lib/dikidi/time';
-import { bookAppointment } from './actions';
+import BookingForm from '@/components/BookingForm';
+import Script from 'next/script';
 
 type ServiceRow = {
   id: string;
@@ -16,6 +16,7 @@ const ERRORS: Record<string, string> = {
   comment_too_long: 'Комментарий слишком длинный (макс. 500 символов).',
   invalid_datetime: 'Проверьте дату и время.',
   past_time: 'Нельзя записаться на прошедшее время.',
+  slot_unavailable: 'Выбранное время недоступно. Выберите другой слот.',
   invalid_service: 'Выберите услугу из списка.',
 };
 
@@ -43,7 +44,7 @@ export default async function BookPage({
       <iframe
         src="/character.html?embed=1"
         title="Анимация"
-        className="fixed inset-0 h-screen w-screen border-0"
+        className="hidden md:block fixed inset-0 h-screen w-screen border-0"
         style={{ pointerEvents: 'none' }}
         loading="eager"
       />
@@ -82,99 +83,13 @@ export default async function BookPage({
               </div>
             ) : null}
 
-            <form
-              action={bookAppointment}
-              className="mt-6 space-y-4"
-            >
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium">Имя</span>
-                <input
-                  name="clientName"
-                  required
-                  minLength={2}
-                  maxLength={80}
-                  className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                />
-              </label>
-
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium">Телефон</span>
-                <input
-                  name="clientPhone"
-                  required
-                  inputMode="tel"
-                  placeholder="+375 (29) 123-45-67"
-                  className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                />
-              </label>
-
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium">Услуга</span>
-                <select
-                  name="serviceId"
-                  required
-                  className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    Выберите услугу
-                  </option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} — {Number(service.price)} BYN ({service.duration_min} мин)
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="grid grid-cols-2 gap-4">
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Дата</span>
-                  <input
-                    type="date"
-                    name="date"
-                    required
-                    min={todayBelarus()}
-                    defaultValue={todayBelarus()}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                  />
-                </label>
-
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Время</span>
-                  <input
-                    type="time"
-                    name="time"
-                    required
-                    defaultValue="10:00"
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                  />
-                </label>
-              </div>
-
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium">Комментарий</span>
-                <textarea
-                  name="comment"
-                  rows={3}
-                  maxLength={500}
-                  className="w-full rounded-lg border border-border bg-white px-3 py-2"
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-rose-dark px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-                style={{ backgroundColor: '#B8627A' }}
-              >
-                Записаться
-              </button>
-            </form>
+            <BookingForm services={services} />
           </div>
         </div>
       </div>
 
-      <script
+      <Script
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `(function(){
             var iframe=null;

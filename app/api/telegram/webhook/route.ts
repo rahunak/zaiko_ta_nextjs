@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { sendTelegramToChat } from '@/lib/telegram';
+import { sendTelegramToChat, readEnv } from '@/lib/telegram';
 import {
   clientReminderText,
   clientReminderLeadText,
@@ -45,7 +45,7 @@ const SITE = 'https://zaiko.by';
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Если секрет задан — проверяем заголовок, который Telegram присылает при setWebhook.
-  const secret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+  const secret = readEnv('TELEGRAM_CLIENT_WEBHOOK_SECRET');
   if (secret && request.headers.get('x-telegram-bot-api-secret-token') !== secret) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
@@ -68,7 +68,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   const [command, payload = ''] = text.split(/\s+/);
 
   const answer = async (message: string) => {
-    await sendTelegramToChat(chat, message);
+    const delivered = await sendTelegramToChat(chat, message);
+    // Провал доставки нельзя прятать за 200: иначе бот молчит, а getWebhookInfo показывает
+    // здоровый вебхук. С 5xx Telegram повторит апдейт и запишет причину в last_error_message.
+    if (!delivered) {
+      return NextResponse.json({ ok: false, error: 'delivery_failed' }, { status: 502 });
+    }
     return NextResponse.json({ ok: true, text: message });
   };
 

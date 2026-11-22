@@ -1,8 +1,27 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
+/**
+ * Читает env и снимает кавычки и пробелы по краям.
+ *
+ * Значения копируют из `.env`-файла в дашборд Vercel, где кавычки становятся частью
+ * значения: `"123:AAH..."` уже не токен, а вход в Bot API с таким значением падает.
+ * Из-за этого бот молчал: отправка возвращала false, а вебхук отвечал 200.
+ */
+export function readEnv(name: string): string | undefined {
+  const raw = process.env[name];
+  if (!raw) {
+    return undefined;
+  }
+  const value = raw
+    .trim()
+    .replace(/^["']+/, '')
+    .replace(/["']+$/, '')
+    .trim();
+  return value || undefined;
+}
+
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
-  return raw
+  return (readEnv('TELEGRAM_MASTER_CHAT_ID') ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
@@ -14,7 +33,7 @@ export function isTelegramConfigured(): boolean {
 
 /** Токен админского бота: уведомления мастеру о новых записях и скором приёме. */
 function masterBotToken(): string | undefined {
-  return process.env.TELEGRAM_MASTER_BOT_TOKEN;
+  return readEnv('TELEGRAM_MASTER_BOT_TOKEN');
 }
 
 /**
@@ -24,7 +43,7 @@ function masterBotToken(): string | undefined {
  * Если отдельный токен не задан — работает старый вариант с одним ботом.
  */
 export function clientBotToken(): string | undefined {
-  return process.env.TELEGRAM_CLIENT_BOT_TOKEN || masterBotToken();
+  return readEnv('TELEGRAM_CLIENT_BOT_TOKEN') ?? masterBotToken();
 }
 
 function escapeHtml(value: string): string {
@@ -87,11 +106,7 @@ const BOT_USERNAME_RE = /^[a-z0-9_]{5,32}$/i;
  * значение возвращает null: лучше спрятать кнопку, чем показать битую ссылку.
  */
 export function botUsername(): string | null {
-  const value = (process.env.TELEGRAM_CLIENT_BOT_USERNAME ?? '')
-    .trim()
-    .replace(/^["']+|["']+$/g, '')
-    .replace(/^@/, '')
-    .trim();
+  const value = (readEnv('TELEGRAM_CLIENT_BOT_USERNAME') ?? '').replace(/^@/, '').trim();
 
   if (!value) {
     return DEFAULT_BOT_USERNAME;

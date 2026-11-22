@@ -51,8 +51,8 @@ export function About({ dikidiUrl }: AboutProps) {
 
             <a
               href={dikidiUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+              rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-medium text-sm transition-all hover:opacity-90"
               style={{ backgroundColor: "#B8748A", color: "#fff" }}
             >

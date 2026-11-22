@@ -15,7 +15,7 @@ import { FloatingCTA } from "@/components/FloatingCTA"
 import { Cities } from "@/components/Cities"
 import { services, benefits, reviews, faqs, galleryImages, citiesGeo } from "@/lib/data"
 
-const DIKIDI_URL = "https://dikidi.net/1784388?p=1.pi-ssm"
+const DIKIDI_URL = "/book"
 const PHONE = "+375256827229"
 const PHONE_DISPLAY = "+375 (25) 68-27-229"
 const WHATSAPP_URL = "https://wa.me/375256827229"

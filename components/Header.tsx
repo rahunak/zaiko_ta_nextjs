@@ -50,8 +50,8 @@ export function Header({ scrolled, scrollTo, dikidiUrl, navItems = DEFAULT_NAV }
         <div className="flex items-center gap-2">
           <a
             href={dikidiUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+            rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
             className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-90 active:scale-95"
             style={{ backgroundColor: "#B8748A", color: "#fff" }}
           >
@@ -75,7 +75,7 @@ export function Header({ scrolled, scrollTo, dikidiUrl, navItems = DEFAULT_NAV }
           {navItems.map(([label, id]) => (
             <button key={id} onClick={() => { scrollTo(id); setMenuOpen(false); }} className="block w-full text-left py-3 text-sm border-b" style={{ color: "#1A1618", borderColor: "#E8DCDA" }}>{label}</button>
           ))}
-          <a href={dikidiUrl} target="_blank" rel="noopener noreferrer" className="mt-3 w-full flex items-center justify-center py-3 rounded-full text-sm font-medium" style={{ backgroundColor: "#B8748A", color: "#fff" }}>Записаться онлайн</a>
+          <a href={dikidiUrl} target={dikidiUrl.startsWith('http') ? '_blank' : undefined} rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined} className="mt-3 w-full flex items-center justify-center py-3 rounded-full text-sm font-medium" style={{ backgroundColor: "#B8748A", color: "#fff" }}>Записаться онлайн</a>
         </div>
       )}
     </header>

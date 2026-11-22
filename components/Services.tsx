@@ -37,8 +37,8 @@ export function Services({ services, dikidiUrl }: ServicesProps) {
               </div>
               <a
                 href={dikidiUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+                rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
                 className="mt-1 w-full py-2.5 rounded-xl text-sm font-medium text-center transition-all hover:opacity-90 active:scale-95"
                 style={{ backgroundColor: "#F2E4EA", color: "#8B4A63" }}
               >

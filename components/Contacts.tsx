@@ -90,12 +90,12 @@ export function Contacts({ phone, phoneDisplay, whatsappUrl, viberUrl, telegramU
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <a
                 href={dikidiUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+                rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
                 className="flex-1 py-3.5 rounded-full text-sm font-medium text-center transition-all hover:opacity-90"
                 style={{ backgroundColor: "#B8748A", color: "#fff" }}
               >
-                Записаться через DIKIDI
+                Записаться
               </a>
               <a
                 href={viberUrl}

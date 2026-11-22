@@ -7,8 +7,8 @@ export function FloatingCTA({ dikidiUrl }: FloatingCTAProps) {
     <div className="fixed bottom-5 left-4 right-4 z-50 sm:hidden">
       <a
         href={dikidiUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+        target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+        rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
         className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-medium text-sm transition-all active:scale-95"
         style={{ backgroundColor: "#B8748A", color: "#fff", boxShadow: "0 8px 32px rgba(184,116,138,0.45)" }}
       >

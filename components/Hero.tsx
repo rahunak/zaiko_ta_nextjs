@@ -44,8 +44,8 @@ export function Hero({ dikidiUrl, phone, scrollTo }: HeroProps) {
           <div className="flex flex-wrap gap-3 animate-fade-up animate-fade-up-delay-3">
             <a
               href={dikidiUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={dikidiUrl.startsWith('http') ? '_blank' : undefined}
+              rel={dikidiUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-medium text-sm transition-all hover:opacity-90 hover:scale-105 active:scale-95"
               style={{ backgroundColor: "#B8748A", color: "#fff", boxShadow: "0 4px 20px rgba(184,116,138,0.4)" }}
             >

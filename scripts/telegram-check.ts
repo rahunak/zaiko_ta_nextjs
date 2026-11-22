@@ -11,7 +11,7 @@
  *
  * Переменные берутся из окружения (bun сам подхватывает .env / .env.local),
  * либо передайте их явно:
- *   TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
+ *   TELEGRAM_BOT_TOKEN=... TELEGRAM_MASTER_CHAT_ID=... DATABASE_URL=... bun run scripts/telegram-check.ts
  */
 
 import { Pool } from 'pg';
@@ -39,7 +39,7 @@ function mask(value: string): string {
 }
 
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
+  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
   return raw
     .split(',')
     .map((value) => value.trim())
@@ -106,14 +106,14 @@ async function checkEnv(): Promise<void> {
   if (ids.length === 0) {
     report(
       'fail',
-      'TELEGRAM_CHAT_ID не задан',
+      'TELEGRAM_MASTER_CHAT_ID не задан',
       'Нужен числовой chat_id личного чата мастера с ботом (не @username канала).',
     );
   } else {
     const bad = ids.filter((id) => !/^-?\d+$/.test(id));
     report(
       bad.length === 0 ? 'ok' : 'fail',
-      `TELEGRAM_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
+      `TELEGRAM_MASTER_CHAT_ID: ${ids.length} получател(ь/я): ${ids.join(', ')}`,
       bad.length ? `Не похоже на chat_id: ${bad.join(', ')}. Узнать: @userinfobot.` : undefined,
     );
   }

@@ -1,7 +1,7 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
 function chatIds(): string[] {
-  const raw = process.env.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
+  const raw = process.env.TELEGRAM_MASTER_CHAT_ID ?? '';
   return raw
     .split(',')
     .map((value) => value.trim())

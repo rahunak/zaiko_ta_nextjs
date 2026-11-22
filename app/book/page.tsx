@@ -1,7 +1,25 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { query } from '@/lib/db';
+import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
+import { botUsername } from '@/lib/telegram';
 import BookingForm from '@/components/BookingForm';
+import BookingConversion from '@/components/BookingConversion';
 import Script from 'next/script';
+
+export const metadata: Metadata = {
+  metadataBase: new URL('https://zaiko.by'),
+  title: 'Онлайн-запись на брови и ресницы — Зайко Татьяна, Крупки',
+  description:
+    'Выберите услугу, удобный день и время — запись займёт минуту. Крупки, ул. Советская, 49. Ламинирование ресниц, укладка и коррекция бровей.',
+  alternates: { canonical: 'https://zaiko.by/book' },
+  openGraph: {
+    title: 'Онлайн-запись — Зайко Татьяна',
+    description: 'Свободные окна на 45 дней вперёд. Крупки, ул. Советская, 49.',
+    url: 'https://zaiko.by/book',
+    type: 'website',
+  },
+};
 
 type ServiceRow = {
   id: string;
@@ -20,25 +38,68 @@ const ERRORS: Record<string, string> = {
   invalid_service: 'Выберите услугу из списка.',
 };
 
+type BookedAppointment = {
+  id: string;
+  client_name: string;
+  service_name: string;
+  starts_at: Date;
+  duration_min: number;
+  price: string;
+  client_token: string | null;
+  client_chat_id: string | null;
+};
+
+type BookSearchParams = {
+  booked?: string;
+  error?: string;
+  name?: string;
+  phone?: string;
+  comment?: string;
+  services?: string;
+  date?: string;
+  time?: string;
+};
+
+/** Параметр может прийти массивом (`?error=a&error=b`) — берём первое значение. */
+function one(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? '';
+}
+
 export default async function BookPage({
   searchParams,
 }: {
-  searchParams: Promise<{ booked?: string; error?: string }>;
+  searchParams: Promise<BookSearchParams>;
 }) {
   const params = await searchParams;
   const { rows: services } = await query<ServiceRow>(
     `select id, name, price, duration_min
        from services
       where is_active = true
-      order by name`,
+      order by sort_order, name`,
   );
 
   const bookedId = params.booked;
-  const errorMessage = params.error ? (ERRORS[params.error] ?? params.error) : null;
+  const botName = botUsername();
+  const errorCode = one(params.error) || null;
+  const errorMessage = errorCode ? (ERRORS[errorCode] ?? errorCode) : null;
+
+  // Детали только что созданной записи: клиент должен видеть, куда и на что он записался,
+  // а не только номер. Без них он звонит уточнять.
+  let booked: BookedAppointment | null = null;
+  if (bookedId && /^\d+$/.test(bookedId)) {
+    const { rows } = await query<BookedAppointment>(
+      `select id, client_name, service_name, starts_at, duration_min, price,
+              client_token, client_chat_id
+         from appointments
+        where id = $1 and cancelled_at is null`,
+      [Number(bookedId)],
+    );
+    booked = rows[0] ?? null;
+  }
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden"
+      className="relative min-h-screen overflow-x-clip"
       style={{ backgroundColor: '#dda2ab', color: '#1A1618' }}
     >
       <iframe
@@ -68,32 +129,73 @@ export default async function BookPage({
             <h1 className="font-display text-3xl" style={{ fontFamily: 'var(--font-playfair)' }}>
               Онлайн-запись
             </h1>
-            <p className="mt-2 text-sm text-muted">
-              Выберите услугу, день и время — запись сразу попадёт к мастеру.
-            </p>
-
             {bookedId ? (
               <div className="mt-6 rounded-2xl border border-border bg-white px-4 py-3 text-sm">
                 <div className="mb-3 aspect-[4/3] w-full overflow-hidden rounded-xl md:hidden">
                   <iframe
-                    src="/character.html?embed=1"
+                    src="/character.html?embed=1&card=1"
                     title="Анимация"
                     className="h-full w-full border-0"
                     style={{ pointerEvents: 'none' }}
                     loading="lazy"
                   />
                 </div>
-                Запись №{bookedId} создана. Мастер свяжется с вами при необходимости.
+                {booked ? (
+                  <>
+                    <p className="font-medium text-charcoal">
+                      {belarusLongDate(new Date(booked.starts_at))}, {belarusTime(new Date(booked.starts_at))}
+                    </p>
+                    <p className="mt-1 text-muted">
+                      {booked.service_name} · {booked.duration_min} мин · {Number(booked.price)} BYN
+                    </p>
+                    <p className="mt-2">
+                      Запись №{booked.id} создана. Мастер свяжется с вами при необходимости.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Запись №{bookedId} создана. Мастер свяжется с вами при необходимости.
+                  </p>
+                )}
+                {booked?.client_chat_id ? (
+                  <p className="mt-3 text-xs" style={{ color: '#3f7a4f' }}>
+                    Напоминание в Telegram включено ✓
+                  </p>
+                ) : booked?.client_token && botName ? (
+                  <>
+                    <a
+                      href={`https://t.me/${botName}?start=${booked.client_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                      style={{ backgroundColor: '#2AABEE' }}
+                    >
+                      Получить напоминание в Telegram
+                    </a>
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      Откройте бота и нажмите /start — напомним за 2 часа до визита.
+                    </p>
+                  </>
+                ) : null}
+                <BookingConversion appointmentId={bookedId} />
               </div>
             ) : null}
 
-            {errorMessage ? (
-              <div className="mt-6 rounded-2xl border border-gold-light bg-gold-light px-4 py-3 text-sm text-gold">
-                {errorMessage}
-              </div>
-            ) : null}
-
-            <BookingForm services={services} />
+            <BookingForm
+              services={services}
+              initial={{
+                errorCode,
+                errorMessage,
+                name: one(params.name),
+                phone: one(params.phone),
+                comment: one(params.comment),
+                serviceIds: one(params.services)
+                  .split(',')
+                  .filter((id) => /^\d+$/.test(id)),
+                date: one(params.date),
+                time: one(params.time),
+              }}
+            />
           </div>
         </div>
       </div>

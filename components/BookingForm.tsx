@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { bookAppointment } from '@/app/book/actions';
 
 type Service = {
@@ -12,13 +13,18 @@ type Service = {
 
 type DateAvailability = {
   date: string;
+  /** Свободное время дня приходит тем же ответом, что и даты. */
+  slots: string[];
   slotCount: number;
 };
 
-const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
+const weekdayShortFormatter = new Intl.DateTimeFormat('ru-RU', {
   timeZone: 'Europe/Minsk',
   weekday: 'short',
-  day: 'numeric',
+});
+
+const monthShortFormatter = new Intl.DateTimeFormat('ru-RU', {
+  timeZone: 'Europe/Minsk',
   month: 'short',
 });
 
@@ -29,406 +35,592 @@ const fullDateFormatter = new Intl.DateTimeFormat('ru-RU', {
   month: 'long',
 });
 
-function formatDateParts(value: string): { weekday: string; day: string } {
-  const date = new Date(`${value}T12:00:00+03:00`);
-  const parts = dateFormatter.formatToParts(date);
-  const weekday = parts.find((p) => p.type === 'weekday')?.value ?? '';
-  const day = parts.find((p) => p.type === 'day')?.value ?? '';
-  const month = parts.find((p) => p.type === 'month')?.value ?? '';
-  return { weekday, day: `${day} ${month}` };
+function dayNumber(value: string): string {
+  return new Date(`${value}T12:00:00+03:00`).getDate().toString();
+}
+
+function weekdayShort(value: string): string {
+  return weekdayShortFormatter.format(new Date(`${value}T12:00:00+03:00`)).replace('.', '');
+}
+
+function monthShort(value: string): string {
+  return monthShortFormatter.format(new Date(`${value}T12:00:00+03:00`)).replace('.', '');
 }
 
 function formatFullDate(value: string): string {
-  const date = new Date(`${value}T12:00:00+03:00`);
-  return fullDateFormatter.format(date);
+  return fullDateFormatter.format(new Date(`${value}T12:00:00+03:00`));
 }
 
-const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
-function toIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+function todayMinsk(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk' }).format(new Date());
 }
 
-function getCalendarDays(viewDate: Date, availableMap: Map<string, number>) {
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  // ISO weekday: Monday=1..Sunday=7
-  const startWeekday = (firstDay.getDay() + 6) % 7; // 0=Mon
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const cells: Array<{ date: string | null; slotCount: number | null }> = [];
-  for (let i = 0; i < startWeekday; i++) {
-    cells.push({ date: null, slotCount: null });
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day);
-    const iso = toIsoDate(d);
-    cells.push({ date: iso, slotCount: availableMap.has(iso) ? availableMap.get(iso)! : null });
-  }
-  return cells;
+function serviceInitial(name: string): string {
+  return (name.trim().charAt(0) || '?').toUpperCase();
 }
 
-export default function BookingForm({ services }: { services: Service[] }) {
-  const [serviceId, setServiceId] = useState(services[0]?.id ?? '');
-  const [dates, setDates] = useState<DateAvailability[]>([]);
+function plural(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+/**
+ * Кнопка записи знает о состоянии отправки: до server action `pending` = true,
+ * поэтому повторный тап по экрану не создаёт вторую запись.
+ */
+function SubmitButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
+      className="w-full rounded-xl border border-rose-dark bg-rose-dark px-4 py-3.5 text-base font-semibold text-white shadow-[0_-6px_24px_rgba(26,22,24,0.16)] transition hover:opacity-90 disabled:opacity-60"
+      style={{ backgroundColor: '#B8627A' }}
+    >
+      {pending ? 'Отправляем…' : 'Записаться'}
+    </button>
+  );
+}
+
+type BookingInitial = {
+  errorCode: string | null;
+  errorMessage: string | null;
+  name: string;
+  phone: string;
+  comment: string;
+  serviceIds: string[];
+  date: string;
+  time: string;
+};
+
+export default function BookingForm({
+  services,
+  initial,
+}: {
+  services: Service[];
+  initial?: BookingInitial;
+}) {
+  const restoredIds = (initial?.serviceIds ?? []).filter((id) =>
+    services.some((s) => s.id === id),
+  );
+  // Ошибки формы приходят с сервера редиректом: возвращаем человека на ту сцену,
+  // где он ошибся, а не на пустой выбор услуг. Только битые услуги — на сцену 1.
+  const [scene, setScene] = useState<1 | 2>(
+    initial?.errorCode && initial.errorCode !== 'invalid_service' ? 2 : 1,
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    restoredIds.length ? restoredIds : services.length ? [services[0].id] : [],
+  );
+  const [availability, setAvailability] = useState<DateAvailability[]>([]);
   const [selectedDate, setSelectedDate] = useState('');
-  const [slots, setSlots] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState('');
-  const [loadingDates, setLoadingDates] = useState(false);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [viewDate, setViewDate] = useState<Date>(new Date());
-  const [serviceOpen, setServiceOpen] = useState(false);
-  const serviceRef = useRef<HTMLDivElement>(null);
-  const slotScrollRef = useRef<HTMLDivElement>(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [expandedHour, setExpandedHour] = useState<string | null>(null);
+  const [clientName, setClientName] = useState(initial?.name ?? '');
+  const [clientPhone, setClientPhone] = useState(initial?.phone ?? '');
+  const [comment, setComment] = useState(initial?.comment ?? '');
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (serviceRef.current && !serviceRef.current.contains(e.target as Node)) {
-        setServiceOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  // Восстановить выбранный слот после ошибки нужно один раз — при следующей
+  // загрузке списка (смена услуг) выбор уже сбрасывается на ближайший день.
+  const restoreSlotRef = useRef(
+    initial?.date && initial?.time ? { date: initial.date, time: initial.time } : null,
+  );
 
+  const dateScrollRef = useRef<HTMLDivElement>(null);
+  const calendarInputRef = useRef<HTMLInputElement>(null);
+
+  // Один запрос загружает свободное время сразу на 45 дней: переключение дня
+  // не ходит на сервер и не показывает спиннер.
   useEffect(() => {
-    if (!serviceId) return;
+    if (selectedIds.length === 0) {
+      setAvailability([]);
+      setSelectedDate('');
+      setSelectedTime('');
+      return;
+    }
+
     let cancelled = false;
-    setLoadingDates(true);
-    setStep(1);
+    setLoadingAvailability(true);
     setSelectedDate('');
     setSelectedTime('');
-    setSlots([]);
-    fetch(`/api/availability?serviceId=${serviceId}&days=45`)
+    setExpandedHour(null);
+
+    fetch(`/api/availability?serviceIds=${selectedIds.join(',')}&days=45`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
         const list: DateAvailability[] = Array.isArray(data.dates) ? data.dates : [];
-        setDates(list);
-        if (list.length > 0) {
-          const first = new Date(`${list[0].date}T12:00:00+03:00`);
-          setViewDate(new Date(first.getFullYear(), first.getMonth(), 1));
+        setAvailability(list);
+
+        const restore = restoreSlotRef.current;
+        restoreSlotRef.current = null;
+        const restored = restore
+          ? list.find((d) => d.date === restore.date && d.slots.includes(restore.time))
+          : undefined;
+
+        if (restored) {
+          setSelectedDate(restored.date);
+          setSelectedTime(restore!.time);
+          return;
         }
+
+        // По умолчанию — первый день с местами, начиная со следующего за сегодня.
+        const today = todayMinsk();
+        const withSlots = list.filter((d) => (d.slots?.length ?? 0) > 0);
+        const defaultDay = withSlots.find((d) => d.date > today) ?? withSlots[0] ?? null;
+        setSelectedDate(defaultDay?.date ?? '');
+        setSelectedTime(defaultDay?.slots[0] ?? '');
       })
       .catch(() => {
-        if (!cancelled) setDates([]);
+        if (!cancelled) setAvailability([]);
       })
       .finally(() => {
-        if (!cancelled) setLoadingDates(false);
+        if (!cancelled) setLoadingAvailability(false);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [serviceId]);
+  }, [selectedIds.join(',')]);
 
-  useEffect(() => {
-    if (!serviceId || !selectedDate) {
-      setSlots([]);
-      setSelectedTime('');
-      return;
-    }
-    let cancelled = false;
-    setLoadingSlots(true);
-    setSelectedTime('');
-    fetch(`/api/availability?serviceId=${serviceId}&date=${selectedDate}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        const list: string[] = Array.isArray(data.slots) ? data.slots : [];
-        setSlots(list);
-        if (list.length > 0) setSelectedTime(list[0]);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSlots([]);
-          setSelectedTime('');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSlots(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [serviceId, selectedDate]);
-
-  const chooseDate = (d: string, slotCount: number) => {
-    if (slotCount <= 0) return;
-    setSelectedDate(d);
-    setStep(2);
+  const toggleService = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
-  const selectedService = services.find((s) => s.id === serviceId) ?? services[0];
-  const availableMap = new Map(dates.map((d) => [d.date, d.slotCount]));
-  const cells = getCalendarDays(viewDate, availableMap);
-  const monthLabel = viewDate.toLocaleDateString('ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  });
-  const availableMonths = Array.from(new Set(dates.map((d) => d.date.slice(0, 7))));
-  const currentMonthKey = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}`;
-  const canPrev =
-    availableMonths.length > 0 && availableMonths.indexOf(currentMonthKey) > 0;
-  const canNext =
-    availableMonths.length > 0 &&
-    availableMonths.indexOf(currentMonthKey) < availableMonths.length - 1;
+  const selectedServices = services.filter((s) => selectedIds.includes(s.id));
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration_min, 0);
+  const totalPrice = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
 
-  const goPrevMonth = () => {
-    const idx = availableMonths.indexOf(currentMonthKey);
-    if (idx > 0) {
-      const [y, m] = availableMonths[idx - 1].split('-');
-      setViewDate(new Date(Number(y), Number(m) - 1, 1));
-    }
+  const dateOptions = availability.filter((d) => d.slots.length > 0);
+  const slots = availability.find((d) => d.date === selectedDate)?.slots ?? [];
+
+  const selectDate = (date: string) => {
+    setSelectedDate(date);
+    setExpandedHour(null);
+    setSelectedTime(availability.find((d) => d.date === date)?.slots[0] ?? '');
   };
-  const goNextMonth = () => {
-    const idx = availableMonths.indexOf(currentMonthKey);
-    if (idx >= 0 && idx < availableMonths.length - 1) {
-      const [y, m] = availableMonths[idx + 1].split('-');
-      setViewDate(new Date(Number(y), Number(m) - 1, 1));
+
+  // Группировка слотов по часам.
+  const byHour = new Map<string, string[]>();
+  for (const s of slots) {
+    const h = s.slice(0, 2);
+    if (!byHour.has(h)) byHour.set(h, []);
+    byHour.get(h)!.push(s);
+  }
+  const hourList = Array.from(byHour.keys()).sort();
+
+  const scrollDates = (dir: number) => {
+    const el = dateScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 220, behavior: 'smooth' });
+  };
+
+  const openCalendar = () => {
+    const input = calendarInputRef.current;
+    if (!input) return;
+    try {
+      // @ts-ignore
+      if (typeof input.showPicker === 'function') input.showPicker();
+      else input.click();
+    } catch {
+      input.click();
     }
   };
 
   return (
-    <form action={bookAppointment} className="mt-6 space-y-5">
+    <form action={bookAppointment} className="mt-2">
+      <input type="hidden" name="serviceIds" value={selectedIds.join(',')} />
       <input type="hidden" name="date" value={selectedDate} />
       <input type="hidden" name="time" value={selectedTime} />
 
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Имя</span>
-        <input
-          name="clientName"
-          required
-          minLength={2}
-          maxLength={80}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-base"
-        />
-      </label>
+      {initial?.errorMessage ? (
+        <div
+          role="alert"
+          className="mt-3 rounded-xl border px-3 py-2.5 text-sm"
+          style={{ borderColor: '#d9b26a', backgroundColor: '#fbf3dc', color: '#7a5a16' }}
+        >
+          {initial.errorMessage}
+        </div>
+      ) : null}
 
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Телефон</span>
-        <input
-          name="clientPhone"
-          required
-          inputMode="tel"
-          placeholder="+375 (29) 123-45-67"
-          className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-base"
-        />
-      </label>
+      {/* Сцены переключаются через display: неактивная не держит высоту,
+          иначе карточка растягивается по длинному списку услуг. */}
+      <div className="overflow-x-clip">
+        {/* Сцена 1: выбор услуг */}
+        <section
+          className={`flex min-h-[calc(100vh-140px)] w-full flex-col space-y-4 pb-2 ${scene === 1 ? 'animate-fade-up' : 'hidden'
+            }`}
+        >
+          <div>
+            <h2 className="text-base font-semibold text-charcoal">Выберите услуги</h2>
+            <p className="text-xs text-muted">Можно выбрать несколько</p>
+          </div>
 
-      <div className="block text-sm" ref={serviceRef}>
-        <span className="mb-1 block font-medium">Услуга</span>
-        <input type="hidden" name="serviceId" value={serviceId} />
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setServiceOpen((o) => !o)}
-            className="flex w-full items-center justify-between rounded-lg border border-border bg-white px-3 py-2.5 text-left text-base"
-          >
-            <span>
-              <span className="block font-medium text-charcoal">{selectedService?.name}</span>
-              <span className="block text-xs text-muted">
-                {Number(selectedService?.price)} BYN · {selectedService?.duration_min} мин
-              </span>
-            </span>
-            <span className="text-muted">{serviceOpen ? '▴' : '▾'}</span>
-          </button>
-          {serviceOpen && (
-            <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-white shadow-lg">
-              {services.map((s) => (
+          <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2">
+            {services.map((s) => {
+              const checked = selectedIds.includes(s.id);
+              return (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => {
-                    setServiceId(s.id);
-                    setServiceOpen(false);
-                  }}
-                  className={`w-full border-b border-border px-3 py-2.5 text-left last:border-b-0 ${s.id === serviceId ? 'bg-cream' : 'hover:bg-cream'
+                  onClick={() => toggleService(s.id)}
+                  aria-pressed={checked}
+                  title={s.name}
+                  className={`group relative flex w-full min-w-0 items-stretch overflow-hidden rounded-xl border text-left transition ${checked
+                    ? 'border-rose-dark bg-rose-light/40 shadow-sm'
+                    : 'border-border bg-white hover:border-rose hover:shadow-sm'
                     }`}
                 >
-                  <span className="block font-medium text-charcoal">{s.name}</span>
-                  <span className="block text-xs text-muted">
-                    {Number(s.price)} BYN · {s.duration_min} мин
+                  <div
+                    className={`flex w-[60px] shrink-0 items-center justify-center transition ${checked
+                      ? 'bg-gradient-to-br from-rose to-rose-dark'
+                      : 'bg-gradient-to-br from-rose-light to-cream'
+                      }`}
+                  >
+                    <span
+                      className={`font-display text-2xl leading-none ${checked ? 'text-white/90' : 'text-rose-dark/60'
+                        }`}
+                      style={{ fontFamily: 'var(--font-playfair)' }}
+                    >
+                      {serviceInitial(s.name)}
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 py-3 pl-3 pr-10">
+                    <span className="line-clamp-3 break-words text-sm font-semibold leading-snug text-charcoal">
+                      {s.name}
+                    </span>
+                    <div className="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <span className="rounded-md bg-cream px-1.5 py-0.5 text-[11px] font-medium text-muted">
+                        {s.duration_min} мин
+                      </span>
+                      <span className="whitespace-nowrap text-sm font-bold text-charcoal">
+                        {Number(s.price)} BYN
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    aria-hidden
+                    className={`pointer-events-none absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full border transition ${checked
+                      ? 'border-rose-dark text-white'
+                      : 'border-border bg-white text-transparent'
+                      }`}
+                    style={checked ? { backgroundColor: '#B8627A' } : undefined}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
                   </span>
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      {/* Шаг 1: выбор даты */}
-      {step === 1 && (
-        <div>
-          {loadingDates ? (
-            <p className="text-sm text-muted">Загрузка дат…</p>
-          ) : dates.length === 0 ? (
-            <p className="text-sm text-muted">Нет доступных дат</p>
-          ) : (
-            <div className="rounded-xl border border-border bg-white p-3">
-              {/* Навигация по месяцам */}
-              <div className="mb-2 flex items-center justify-between">
+              );
+            })}
+          </div>
+
+          {selectedServices.length > 0 && (
+            <div className="sticky bottom-0 z-20 mt-auto -mx-1">
+              <div className="flex flex-col gap-2 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-[0_-6px_24px_rgba(26,22,24,0.10)] backdrop-blur sm:flex-row sm:items-center sm:gap-3">
+                <div className="min-w-0 text-xs text-muted sm:flex-1 sm:text-sm">
+                  <span className="font-medium text-charcoal">
+                    {selectedServices.length} {plural(selectedServices.length, 'услуга', 'услуги', 'услуг')}
+                  </span>
+                  <span> · {totalDuration} мин · {totalPrice} BYN</span>
+                </div>
                 <button
                   type="button"
-                  onClick={goPrevMonth}
-                  disabled={!canPrev}
-                  className="rounded-lg px-2 py-1 text-sm text-muted transition hover:text-charcoal disabled:opacity-30"
+                  onClick={() => {
+                    setScene(2);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full shrink-0 rounded-lg bg-rose-dark px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 sm:ml-auto sm:w-auto"
+                  style={{ backgroundColor: '#B8627A' }}
                 >
-                  ←
-                </button>
-                <span className="text-sm font-medium capitalize">{monthLabel}</span>
-                <button
-                  type="button"
-                  onClick={goNextMonth}
-                  disabled={!canNext}
-                  className="rounded-lg px-2 py-1 text-sm text-muted transition hover:text-charcoal disabled:opacity-30"
-                >
-                  →
+                  Продолжить →
                 </button>
               </div>
-
-              {/* Дни недели */}
-              <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-muted">
-                {WEEKDAY_LABELS.map((w) => (
-                  <span key={w}>{w}</span>
-                ))}
-              </div>
-
-              {/* Сетка дней */}
-              <div className="grid grid-cols-7 gap-1">
-                {cells.map((cell, idx) => {
-                  if (!cell.date) {
-                    return <div key={`empty-${idx}`} className="aspect-square" />;
-                  }
-                  const slotCount = cell.slotCount ?? 0;
-                  const available = cell.slotCount !== null && slotCount > 0;
-                  const disabled = !available;
-                  const dayNum = new Date(`${cell.date}T12:00:00+03:00`).getDate();
-                  return (
-                    <button
-                      key={cell.date}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => chooseDate(cell.date!, slotCount)}
-                      className={`aspect-square rounded-lg text-sm transition ${disabled
-                        ? 'cursor-not-allowed text-gray-300'
-                        : 'text-charcoal hover:bg-rose-light'
-                        }`}
-                    >
-                      <span className="block">{dayNum}</span>
-                      {available && slotCount <= 3 ? (
-                        <span className="block text-[8px] text-rose-dark">{slotCount}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p className="mt-2 text-[10px] text-muted">
-                Серым отмечены дни без свободных слотов.
-              </p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Шаг 2: выбор времени */}
-      {step === 2 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+        </section>        {/* Сцена 2: дата и время */}
+        <section className={`w-full space-y-3 ${scene === 2 ? 'animate-fade-up' : 'hidden'}`}>
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium">{formatFullDate(selectedDate)}</p>
-              <p className="text-xs text-muted">
-                {loadingSlots
-                  ? 'Загрузка времени…'
-                  : `${slots.length} свободных слотов`}
-              </p>
+              <h2 className="text-base font-semibold text-charcoal">Дата и время</h2>
+              <p className="text-xs text-muted">Выберите удобный слот</p>
             </div>
             <button
               type="button"
-              onClick={() => setStep(1)}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
+              onClick={() => setScene(1)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-rose hover:text-rose-dark"
             >
-              Изменить дату
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Услуги
             </button>
           </div>
 
-          {loadingSlots ? (
-            <p className="text-sm text-muted">Загрузка времени…</p>
-          ) : slots.length === 0 ? (
-            <p className="text-sm text-muted">Нет свободного времени на эту дату</p>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
+          {/* Дата */}
+          <div className="rounded-xl border border-border bg-white p-3">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                Дата
+              </span>
+              {selectedDate && (
+                <span className="truncate text-xs font-medium text-charcoal first-letter:uppercase">
+                  {formatFullDate(selectedDate)}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={scrollDates.bind(null, -1)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-muted transition hover:border-rose hover:text-rose-dark"
+                aria-label="Назад"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+
+              <div
+                ref={dateScrollRef}
+                className="flex flex-1 gap-1.5 overflow-x-auto py-0.5 snap-x scroll-smooth [&::-webkit-scrollbar]:hidden"
+                style={{ scrollbarWidth: 'none' }}
+              >
+                {/* Календарь */}
                 <button
                   type="button"
-                  onClick={() => slotScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
-                  className="shrink-0 rounded-full border border-border bg-white px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:border-rose"
-                  aria-label="Назад"
+                  onClick={openCalendar}
+                  className="flex h-[62px] w-[58px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-rose/40 bg-rose-light/30 text-rose-dark transition hover:border-rose hover:bg-rose-light/60"
+                  aria-label="Открыть календарь"
                 >
-                  ‹
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span className="text-[9px] font-medium leading-none">Календарь</span>
                 </button>
-                <div
-                  ref={slotScrollRef}
-                  className="flex flex-1 gap-2 overflow-x-auto px-1 pb-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
-                  style={{ scrollbarWidth: 'none' }}
-                >
-                  {slots.map((s) => {
-                    const selected = s === selectedTime;
+                <input
+                  ref={calendarInputRef}
+                  type="date"
+                  // Прошлые дни недоступны: min отсекает их в самом пикере,
+                  // а проверка ниже — на случай ручного ввода.
+                  min={todayMinsk()}
+                  max={dateOptions.at(-1)?.date}
+                  className="sr-only"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v && v >= todayMinsk()) selectDate(v);
+                  }}
+                />
+
+                {loadingAvailability ? (
+                  <span className="flex h-[62px] items-center px-1 text-xs text-muted">
+                    Загрузка дат…
+                  </span>
+                ) : dateOptions.length === 0 ? (
+                  <span className="flex h-[62px] items-center px-1 text-xs text-muted">
+                    Нет доступных дат
+                  </span>
+                ) : (
+                  dateOptions.map((d) => {
+                    const selected = d.date === selectedDate;
                     return (
                       <button
-                        key={s}
+                        key={d.date}
                         type="button"
-                        onClick={() => setSelectedTime(s)}
-                        className={`min-w-[84px] snap-start rounded-2xl border px-4 py-3 text-base font-medium transition ${selected
-                          ? 'border-rose-dark bg-rose-dark text-white shadow-sm'
-                          : 'border-border bg-white text-charcoal hover:border-rose'
+                        onClick={() => selectDate(d.date)}
+                        className={`flex h-[62px] w-[58px] shrink-0 snap-start flex-col items-center justify-center rounded-lg border transition ${selected
+                            ? 'border-rose-dark text-white shadow-sm'
+                            : 'border-border bg-cream/60 text-charcoal hover:border-rose hover:bg-white'
                           }`}
                         style={selected ? { backgroundColor: '#B8627A' } : undefined}
                       >
-                        {s}
+                        <span className="text-lg font-bold leading-none tabular-nums">
+                          {dayNumber(d.date)}
+                        </span>
+                        <span className={`mt-1 text-[10px] font-medium uppercase leading-none ${selected ? 'text-white/85' : 'text-muted'}`}>
+                          {weekdayShort(d.date)}
+                        </span>
+                        <span className={`mt-0.5 text-[9px] leading-none ${selected ? 'text-white/70' : 'text-muted/80'}`}>
+                          {monthShort(d.date)}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={scrollDates.bind(null, 1)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-muted transition hover:border-rose hover:text-rose-dark"
+                aria-label="Вперёд"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>          {/* Время */}
+          <div className="rounded-xl border border-border bg-white p-3">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                Время
+              </span>
+              {!loadingAvailability && slots.length > 0 && (
+                <span className="text-xs text-muted">
+                  {slots.length} {plural(slots.length, 'слот', 'слота', 'слотов')}
+                </span>
+              )}
+            </div>
+
+            {loadingAvailability ? (
+              <p className="py-1 text-sm text-muted">Загрузка времени…</p>
+            ) : slots.length === 0 ? (
+              <p className="py-1 text-sm text-muted">Нет свободного времени на эту дату</p>
+            ) : (
+              <>
+                <div
+                  className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
+                  style={{ scrollbarWidth: 'none' }}
+                >
+                  {hourList.map((h) => {
+                    const hourSlots = byHour.get(h)!;
+                    const hasExtra = hourSlots.length > 1;
+                    const active = selectedTime.startsWith(`${h}:`);
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => {
+                          setExpandedHour(h);
+                          if (!selectedTime.startsWith(`${h}:`)) {
+                            setSelectedTime(hourSlots[0]);
+                          }
+                        }}
+                        className={`relative shrink-0 rounded-lg border px-3.5 py-2 text-sm font-medium tabular-nums transition ${active
+                            ? 'border-rose-dark text-white shadow-sm'
+                            : 'border-border bg-white text-charcoal hover:border-rose'
+                          }`}
+                        style={active ? { backgroundColor: '#B8627A' } : undefined}
+                      >
+                        {h}:00
+                        {hasExtra && (
+                          <span
+                            className="absolute bottom-[3px] right-[3px] h-[5px] w-[5px] bg-current"
+                            style={{
+                              clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
+                              opacity: active ? 0.85 : 0.45,
+                            }}
+                          />
+                        )}
                       </button>
                     );
                   })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => slotScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
-                  className="shrink-0 rounded-full border border-border bg-white px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:border-rose"
-                  aria-label="Вперёд"
-                >
-                  ›
-                </button>
-              </div>
-              <p className="mt-1 text-[10px] text-muted">
-                Свайпните или используйте стрелки, чтобы выбрать время.
-              </p>
-            </>
-          )}
-        </div>
-      )}
 
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Комментарий</span>
-        <textarea
-          name="comment"
-          rows={3}
-          maxLength={500}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-base"
-        />
-      </label>
+                {expandedHour && byHour.has(expandedHour) && byHour.get(expandedHour)!.length > 1 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border pt-2">
+                    {byHour.get(expandedHour)!.map((s) => {
+                      const active = s === selectedTime;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setSelectedTime(s)}
+                          className={`rounded-md border px-2.5 py-1.5 text-sm font-medium tabular-nums transition ${active
+                              ? 'border-rose-dark text-white'
+                              : 'border-border bg-white text-charcoal hover:border-rose'
+                            }`}
+                          style={active ? { backgroundColor: '#B8627A' } : undefined}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-      <button
-        type="submit"
-        disabled={!selectedDate || !selectedTime || loadingDates || loadingSlots}
-        className="w-full rounded-xl bg-rose-dark px-4 py-3 text-base font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-        style={{ backgroundColor: '#B8627A' }}
-      >
-        Записаться
-      </button>
+                <p className="mt-2 text-[10px] leading-snug text-muted">
+                  Уголок внизу значка — есть другие минуты в этом часе.
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Контакты */}
+          <div className="space-y-3 rounded-xl border border-border bg-white p-3">
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-medium text-muted">Имя</span>
+              <input
+                name="clientName"
+                required
+                minLength={2}
+                maxLength={80}
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full rounded-lg border border-border bg-cream/40 px-3 py-2.5 text-sm text-charcoal outline-none transition placeholder:text-muted/60 focus:border-rose focus:bg-white focus:ring-2 focus:ring-rose/15"
+              />
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-medium text-muted">Телефон</span>
+              <input
+                name="clientPhone"
+                required
+                inputMode="tel"
+                placeholder="+375 (29) 123-45-67"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                aria-invalid={initial?.errorCode === 'invalid_phone' || undefined}
+                className={`w-full rounded-lg border bg-cream/40 px-3 py-2.5 text-sm text-charcoal outline-none transition placeholder:text-muted/60 focus:bg-white focus:ring-2 ${initial?.errorCode === 'invalid_phone'
+                    ? 'border-[#c0392b] focus:border-[#c0392b] focus:ring-[#c0392b]/15'
+                    : 'border-border focus:border-rose focus:ring-rose/15'
+                  }`}
+              />
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-medium text-muted">Комментарий</span>
+              <textarea
+                name="comment"
+                rows={3}
+                maxLength={500}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="w-full resize-y rounded-lg border border-border bg-cream/40 px-3 py-2.5 text-sm text-charcoal outline-none transition placeholder:text-muted/60 focus:border-rose focus:bg-white focus:ring-2 focus:ring-rose/15"
+              />
+            </label>
+          </div>
+
+          <div className="sticky bottom-0 z-20 -mx-1">
+            <SubmitButton
+              disabled={selectedIds.length === 0 || !selectedDate || !selectedTime || loadingAvailability}
+            />
+          </div>
+        </section>
+      </div>
     </form>
   );
 }

@@ -6,7 +6,8 @@ import { Footer } from "@/components/Footer"
 import { FloatingCTA } from "@/components/FloatingCTA"
 import { FAQ } from "@/components/FAQ"
 import { StarRating } from "./StarRating"
-import { services, galleryImages } from "@/lib/data"
+import { galleryImages } from "@/lib/data"
+import type { SiteService } from "@/lib/site-services"
 // Перелинковка гео-посадки ↔ блог (план роста 25.10, Этап 1):
 // статья блога ссылается на гео-страницу, гео-страница — на статьи.
 import { articles } from "@/lib/blog"
@@ -27,6 +28,8 @@ export interface GeoCityData {
 
 interface GeoPageProps {
   data: GeoCityData
+  /** Цены и длительность приходят из БД — один источник с /book. */
+  services: SiteService[]
   phone: string
   phoneDisplay: string
   whatsappUrl: string
@@ -46,6 +49,7 @@ const GEO_NAV: [string, string][] = [
 
 export default function GeoPage({
   data,
+  services,
   phone,
   phoneDisplay,
   whatsappUrl,

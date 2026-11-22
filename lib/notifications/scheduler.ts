@@ -1,4 +1,5 @@
 import { sendDueReminders } from './reminders';
+import { sendClientReminders } from './client-reminders';
 
 let started = false;
 
@@ -12,7 +13,13 @@ export function startReminderScheduler(): void {
     try {
       await sendDueReminders();
     } catch (error) {
-      console.error('Напоминания DIKIDI: ошибка отправки', error);
+      console.error('Напоминания мастеру: ошибка отправки', error);
+    }
+
+    try {
+      await sendClientReminders();
+    } catch (error) {
+      console.error('Напоминания клиентам: ошибка отправки', error);
     }
   };
 

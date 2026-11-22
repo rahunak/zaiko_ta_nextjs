@@ -6,6 +6,7 @@
  * определяется именно этими таблицами и уже существующими записями в appointments.
  */
 import { query } from '@/lib/db';
+import { getAppSettings } from '@/lib/settings';
 import {
   addDays,
   belarusDateKey,
@@ -181,11 +182,14 @@ export function generateSlots(
   window: WorkingWindow,
   durationMin: number,
   appointments: AppointmentRow[],
+  bufferMin: number = 0,
 ): string[] {
   const slots: string[] = [];
+  // Буфер добавляется к концу каждой записи: мастеру нужно время на уборку
+  // и подготовку, иначе клиенты ставятся вплотную друг к другу.
   const busy = appointments.map((a) => ({
     start: belarusMinutesOfDay(a.starts_at),
-    end: belarusMinutesOfDay(a.starts_at) + a.duration_min,
+    end: belarusMinutesOfDay(a.starts_at) + a.duration_min + bufferMin,
   }));
 
   for (let start = window.workStart; start + durationMin <= window.workEnd; start += 15) {
@@ -216,18 +220,64 @@ export function generateSlots(
   return slots;
 }
 
+/** Минуты от полуночи по Минску для «сейчас» — для ограничения «не раньше чем через N часов». */
+function nowMinsk(): { dateKey: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Minsk',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+  return {
+    dateKey: `${get('year')}-${get('month')}-${get('day')}`,
+    minutes: Number(get('hour')) * 60 + Number(get('minute')),
+  };
+}
+
+/**
+ * Отбрасывает слоты, до которых осталось меньше лимита (настройка «минимум часов
+ * до записи»). Касается только сегодняшнего дня — остальные дни открыты целиком.
+ */
+export function filterByLeadTime(
+  slots: string[],
+  dateKey: string,
+  leadMinutes: number,
+): string[] {
+  if (leadMinutes <= 0) return slots;
+
+  const current = nowMinsk();
+  if (dateKey !== current.dateKey) return slots;
+
+  const threshold = current.minutes + leadMinutes;
+  return slots.filter((slot) => {
+    const minutes = parseMinutes(slot);
+    return minutes !== null && minutes >= threshold;
+  });
+}
+
 export async function getAvailableSlots(
   dateKey: string,
   durationMin: number,
 ): Promise<string[]> {
   const window = await getWorkingWindow(dateKey);
   if (!window) return [];
+
+  const settings = await getAppSettings();
   const appointments = await getAppointmentsForDate(dateKey);
-  return generateSlots(window, durationMin, appointments);
+  const slots = generateSlots(window, durationMin, appointments, settings.buffer_min);
+
+  return filterByLeadTime(slots, dateKey, settings.min_lead_hours * 60);
 }
 
 export type DateAvailability = {
   date: string;
+  /** Свободное время дня — отдаётся сразу вместе с датой, чтобы переключение дня было мгновенным. */
+  slots: string[];
   slotCount: number;
 };
 
@@ -254,6 +304,8 @@ export async function getAvailableDates(
 
   const def = await getDefaultSchedule();
   const overrides = await getOverridesInRange(today, addDays(today, days - 1));
+  const settings = await getAppSettings();
+  const leadMinutes = settings.min_lead_hours * 60;
 
   for (let i = 0; i < days; i++) {
     const dateKey = addDays(today, i);
@@ -263,8 +315,12 @@ export async function getAvailableDates(
     const dayAppointments = allAppointments.filter(
       (a) => belarusDateKey(a.starts_at) === dateKey,
     );
-    const slots = generateSlots(window, durationMin, dayAppointments);
-    dates.push({ date: dateKey, slotCount: slots.length });
+    const slots = filterByLeadTime(
+      generateSlots(window, durationMin, dayAppointments, settings.buffer_min),
+      dateKey,
+      leadMinutes,
+    );
+    dates.push({ date: dateKey, slots, slotCount: slots.length });
   }
 
   return dates;
@@ -277,4 +333,27 @@ export async function isSlotAvailable(
 ): Promise<boolean> {
   const slots = await getAvailableSlots(dateKey, durationMin);
   return slots.includes(time);
+}
+
+/**
+ * Пересечение с уже существующими записями без привязки к сетке слотов.
+ * Нужно ручной записи в админке: мастер может поставить время не кратно 15 минутам,
+ * и проверка «слот есть в списке» отвергала бы валидное время.
+ */
+export async function hasTimeConflict(
+  dateKey: string,
+  time: string,
+  durationMin: number,
+): Promise<boolean> {
+  const start = parseMinutes(time);
+  if (start === null) return true;
+
+  const end = start + durationMin;
+  const appointments = await getAppointmentsForDate(dateKey);
+
+  return appointments.some((appointment) => {
+    const busyStart = belarusMinutesOfDay(appointment.starts_at);
+    const busyEnd = busyStart + appointment.duration_min;
+    return start < busyEnd && end > busyStart;
+  });
 }

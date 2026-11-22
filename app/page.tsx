@@ -1,41 +1,11 @@
-'use client'
-
-import { useState, useEffect } from "react"
-import { Header } from "@/components/Header"
-import { Hero } from "@/components/Hero"
-import { Services } from "@/components/Services"
-import { Gallery } from "@/components/Gallery"
-import { Benefits } from "@/components/Benefits"
-import { About } from "@/components/About"
-import { Reviews } from "@/components/Reviews"
-import { FAQ } from "@/components/FAQ"
-import { Contacts } from "@/components/Contacts"
-import { Footer } from "@/components/Footer"
-import { FloatingCTA } from "@/components/FloatingCTA"
 import Script from "next/script"
-import { Cities } from "@/components/Cities"
-import { services, benefits, reviews, faqs, galleryImages, citiesGeo } from "@/lib/data"
+import HomeClient from "@/components/HomeClient"
+import { reviews, faqs } from "@/lib/data"
+import { getSiteServices } from "@/lib/site-services"
 
-const DIKIDI_URL = "/book"
-const PHONE = "+375256827229"
-const PHONE_DISPLAY = "+375 (25) 68-27-229"
-const WHATSAPP_URL = "https://wa.me/375256827229"
-const VIBER_URL = "viber://chat?number=%2B375256827229"
-const TELEGRAM_URL = "https://t.me/Lapushka66"
-const INSTAGRAM_URL = "https://instagram.com/zaiko_ta"
-
-export default function Home() {
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60)
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
-
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
-  }
+export default async function Home() {
+  // Услуги и цены — из БД (единый источник с /book), тексты карточек — из lib/data.ts.
+  const services = await getSiteServices()
 
   // LocalBusiness structured data with reviews
   const localBusinessData = {
@@ -110,16 +80,15 @@ export default function Home() {
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
       "name": "Услуги по уходу за ресницами и бровями",
-      "itemListElement": services.map((service, index) => ({
+      // Цены берутся из БД вместе с карточками услуг — расхождений с /book нет.
+      "itemListElement": services.map((service) => ({
         "@type": "Offer",
         "itemOffered": {
           "@type": "Service",
           "name": service.name,
           "description": service.desc
         },
-        // цена: берём ПЕРВОЕ число («35/40 BYN» → 35, «50 BYN» → 50);
-        // replace(/[^\d.]/g) для «35/40» склеивал в 3540 — баг из REPORT_SEO.md §4
-        "price": parseFloat(service.price.match(/[\d.]+/)?.[0] ?? "0"),
+        "price": service.priceValue,
         "priceCurrency": "BYN"
       }))
     }
@@ -173,37 +142,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
       />
 
-      <div className="min-h-screen" style={{ backgroundColor: "#FAF6F2", color: "#1A1618" }}>
-        <Header scrolled={scrolled} scrollTo={scrollTo} dikidiUrl={DIKIDI_URL} />
-        <Hero dikidiUrl={DIKIDI_URL} phone={PHONE} scrollTo={scrollTo} />
-        <Services services={services} dikidiUrl={DIKIDI_URL} />
-        <Gallery images={galleryImages} instagramUrl={INSTAGRAM_URL} />
-        <Benefits benefits={benefits} />
-        <Cities cities={citiesGeo} />
-        <About dikidiUrl={DIKIDI_URL} />
-        <Reviews reviews={reviews} />
-        <FAQ faqs={faqs} />
-        <Contacts
-          phone={PHONE}
-          phoneDisplay={PHONE_DISPLAY}
-          whatsappUrl={WHATSAPP_URL}
-          viberUrl={VIBER_URL}
-          telegramUrl={TELEGRAM_URL}
-          instagramUrl={INSTAGRAM_URL}
-          dikidiUrl={DIKIDI_URL}
-          scrollTo={scrollTo}
-        />
-        <Footer
-          phone={PHONE}
-          phoneDisplay={PHONE_DISPLAY}
-          telegramUrl={TELEGRAM_URL}
-          whatsappUrl={WHATSAPP_URL}
-          viberUrl={VIBER_URL}
-          instagramUrl={INSTAGRAM_URL}
-          scrollTo={scrollTo}
-        />
-        <FloatingCTA dikidiUrl={DIKIDI_URL} />
-      </div>
+      <HomeClient services={services} />
 
       <Script
         strategy="afterInteractive"

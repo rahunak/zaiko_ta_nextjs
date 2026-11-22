@@ -159,6 +159,37 @@ export async function saveOverrideSchedule(formData: FormData): Promise<void> {
   redirect('/admin/availability?saved=override');
 }
 
+/**
+ * Глобальный флаг: дублировать ли записи из онлайн-формы /book в DIKIDI.
+ * По умолчанию выключен — запись живёт только в БД.
+ */
+export async function saveBookSyncSetting(formData: FormData): Promise<void> {
+  await requireUser();
+
+  const enabled = formData.get('bookSyncDikidi') === 'on';
+
+  // Лимиты онлайн-записи: за сколько часов она ещё открыта и буфер между процедурами.
+  const minLeadHours = Math.min(
+    Math.max(Number(formData.get('minLeadHours') ?? 2) || 0, 0),
+    72,
+  );
+  const bufferMin = Math.min(Math.max(Number(formData.get('bufferMin') ?? 10) || 0, 0), 60);
+
+  await query(
+    `insert into app_settings (id, book_sync_dikidi, min_lead_hours, buffer_min, updated_at)
+     values (1, $1, $2, $3, now())
+     on conflict (id) do update set
+       book_sync_dikidi = excluded.book_sync_dikidi,
+       min_lead_hours = excluded.min_lead_hours,
+       buffer_min = excluded.buffer_min,
+       updated_at = now()`,
+    [enabled, minLeadHours, bufferMin],
+  );
+
+  revalidatePath('/admin/availability');
+  redirect('/admin/availability?saved=book-sync');
+}
+
 export async function deleteOverrideSchedule(formData: FormData): Promise<void> {
   await requireUser();
   const date = String(formData.get('date') ?? '').trim();

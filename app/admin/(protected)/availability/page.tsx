@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth/session';
 import { query } from '@/lib/db';
 import { todayBelarus } from '@/lib/dikidi/time';
+import { getAppSettings } from '@/lib/settings';
 import {
   saveDefaultSchedule,
   saveOverrideSchedule,
   deleteOverrideSchedule,
+  saveBookSyncSetting,
 } from './actions';
 
 type DefaultRow = {
@@ -80,6 +82,7 @@ export default async function AvailabilityPage({
       order by date`,
   );
 
+  const settings = await getAppSettings();
   const errorMessage = params.error ? (ERRORS[params.error] ?? params.error) : null;
 
   return (
@@ -111,85 +114,11 @@ export default async function AvailabilityPage({
           Переопределение дня удалено — применяется расписание по умолчанию.
         </div>
       ) : null}
-
-      {/* Расписание по умолчанию */}
-      <section className="rounded-2xl border border-border bg-white p-5">
-        <h2 className="font-display text-lg">Расписание по умолчанию</h2>
-        <p className="mt-1 text-sm text-muted">
-          Применяется ко всем дням, для которых не задано отдельное переопределение.
-        </p>
-
-        <form action={saveDefaultSchedule} className="mt-4 space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="isWorking" defaultChecked={def.is_working} />
-            <span>Мастер работает в этот день</span>
-          </label>
-
-          <div>
-            <span className="mb-1 block text-sm font-medium">Рабочие дни недели</span>
-            <div className="flex flex-wrap gap-3">
-              {WEEKDAYS.map((wd) => (
-                <label key={wd.v} className="flex items-center gap-1 text-sm">
-                  <input
-                    type="checkbox"
-                    name="workingDays"
-                    value={wd.v}
-                    defaultChecked={def.working_days?.includes(wd.v)}
-                  />
-                  {wd.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Начало</span>
-              <input
-                type="time"
-                name="workStart"
-                defaultValue={timeValue(def.work_start)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Окончание</span>
-              <input
-                type="time"
-                name="workEnd"
-                defaultValue={timeValue(def.work_end)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Перерыв с</span>
-              <input
-                type="time"
-                name="breakStart"
-                defaultValue={timeValue(def.break_start)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Перерыв до</span>
-              <input
-                type="time"
-                name="breakEnd"
-                defaultValue={timeValue(def.break_end)}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2"
-              />
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-            style={{ backgroundColor: '#B8627A' }}
-          >
-            Сохранить по умолчанию
-          </button>
-        </form>
-      </section>
+      {params.saved === 'book-sync' ? (
+        <div className="rounded-lg border border-border bg-cream px-4 py-3 text-sm">
+          Настройка онлайн-записи сохранена.
+        </div>
+      ) : null}
 
       {/* Переопределение конкретного дня */}
       <section className="rounded-2xl border border-border bg-white p-5">
@@ -275,6 +204,85 @@ export default async function AvailabilityPage({
         </form>
       </section>
 
+      {/* Расписание по умолчанию */}
+      <section className="rounded-2xl border border-border bg-white p-5">
+        <h2 className="font-display text-lg">Расписание по умолчанию</h2>
+        <p className="mt-1 text-sm text-muted">
+          Применяется ко всем дням, для которых не задано отдельное переопределение.
+        </p>
+
+        <form action={saveDefaultSchedule} className="mt-4 space-y-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isWorking" defaultChecked={def.is_working} />
+            <span>Мастер работает в этот день</span>
+          </label>
+
+          <div>
+            <span className="mb-1 block text-sm font-medium">Рабочие дни недели</span>
+            <div className="flex flex-wrap gap-3">
+              {WEEKDAYS.map((wd) => (
+                <label key={wd.v} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    name="workingDays"
+                    value={wd.v}
+                    defaultChecked={def.working_days?.includes(wd.v)}
+                  />
+                  {wd.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Начало</span>
+              <input
+                type="time"
+                name="workStart"
+                defaultValue={timeValue(def.work_start)}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Окончание</span>
+              <input
+                type="time"
+                name="workEnd"
+                defaultValue={timeValue(def.work_end)}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Перерыв с</span>
+              <input
+                type="time"
+                name="breakStart"
+                defaultValue={timeValue(def.break_start)}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Перерыв до</span>
+              <input
+                type="time"
+                name="breakEnd"
+                defaultValue={timeValue(def.break_end)}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            style={{ backgroundColor: '#B8627A' }}
+          >
+            Сохранить по умолчанию
+          </button>
+        </form>
+      </section>
+
       {/* Список переопределений */}
       <section className="rounded-2xl border border-border bg-white p-5">
         <h2 className="font-display text-lg">Переопределённые дни</h2>
@@ -288,11 +296,10 @@ export default async function AvailabilityPage({
                   <p className="text-sm font-medium">{o.date}</p>
                   <p className="text-xs text-muted">
                     {o.is_working
-                      ? `${timeValue(o.work_start)}–${timeValue(o.work_end)}${
-                          o.break_start && o.break_end
-                            ? ` (перерыв ${timeValue(o.break_start)}–${timeValue(o.break_end)})`
-                            : ''
-                        }`
+                      ? `${timeValue(o.work_start)}–${timeValue(o.work_end)}${o.break_start && o.break_end
+                        ? ` (перерыв ${timeValue(o.break_start)}–${timeValue(o.break_end)})`
+                        : ''
+                      }`
                       : 'Выходной'}
                     {o.note ? ` · ${o.note}` : ''}
                   </p>
@@ -310,6 +317,75 @@ export default async function AvailabilityPage({
             ))}
           </ul>
         )}
+      </section>
+
+      {/* Глобальный флаг онлайн-записи */}
+      <section className="rounded-2xl border border-border bg-white p-5">
+        <h2 className="font-display text-lg">Онлайн-запись (/book)</h2>
+        <p className="mt-1 text-sm text-muted">
+          Что делать с записями, которые клиенты создают самостоятельно через форму на сайте.
+        </p>
+
+        <form action={saveBookSyncSetting} className="mt-4 space-y-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="bookSyncDikidi"
+              defaultChecked={settings.book_sync_dikidi}
+              className="mt-0.5"
+            />
+            <span>
+              Дублировать онлайн-записи в DIKIDI
+              <span className="mt-0.5 block text-xs text-muted">
+                Выключено: запись сохраняется только в админке и не попадает в кабинет DIKIDI.
+                Включено: после сохранения форма пробует создать её и в DIKIDI; при ошибке или
+                вне графика мастера запись остаётся локальной с причиной в карточке записи.
+              </span>
+            </span>
+          </label>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Минимум часов до записи</span>
+              <input
+                type="number"
+                name="minLeadHours"
+                min={0}
+                max={72}
+                step={1}
+                defaultValue={settings.min_lead_hours}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+              <span className="mt-1 block text-xs text-muted">
+                Слоты раньше этого срока не показываются клиентам. 0 — без ограничения.
+              </span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Буфер между процедурами, мин</span>
+              <input
+                type="number"
+                name="bufferMin"
+                min={0}
+                max={60}
+                step={5}
+                defaultValue={settings.buffer_min}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2"
+              />
+              <span className="mt-1 block text-xs text-muted">
+                Время на уборку и подготовку после каждой записи.
+              </span>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            style={{ backgroundColor: '#B8627A' }}
+          >
+            Сохранить
+          </button>
+        </form>
       </section>
 
       <Link href="/admin/schedule" className="text-sm text-muted hover:text-charcoal">

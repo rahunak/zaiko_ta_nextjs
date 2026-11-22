@@ -55,23 +55,33 @@ export default async function EditAppointmentPage({
     notFound();
   }
 
-  const [{ rows: services }, { rows: appointments }] = await Promise.all([
+  const [{ rows: services }, { rows: appointments }, { rows: apptServices }] = await Promise.all([
     query<ServiceRow>(
       `select id, name, price, duration_min
          from services
         where is_active = true
-        order by id`,
+        order by sort_order, name`,
     ),
     query<AppointmentRow>(
       `select id, client_name, client_phone, service_id, service_name, starts_at,
               duration_min, price, comment, sync_status, sync_error, dikidi_id
          from appointments
-        where id = $1 and source = 'admin' and cancelled_at is null`,
+        where id = $1 and source in ('admin', 'online') and cancelled_at is null`,
+      [appointmentId],
+    ),
+    query<{ service_id: string | null }>(
+      `select service_id from appointment_services where appointment_id = $1`,
       [appointmentId],
     ),
   ]);
 
+  const selectedServiceIds = new Set(apptServices.map((r) => String(r.service_id)));
+
   const appointment = appointments[0];
+
+  if (selectedServiceIds.size === 0 && appointment?.service_id) {
+    selectedServiceIds.add(String(appointment.service_id));
+  }
 
   if (!appointment) {
     notFound();
@@ -91,7 +101,7 @@ export default async function EditAppointmentPage({
           </p>
         </div>
         <Link
-          href="/admin"
+          href="/admin/new"
           className="rounded-lg border border-border px-4 py-2 text-sm transition hover:border-rose hover:text-rose-dark"
         >
           ← К записям
@@ -146,21 +156,25 @@ export default async function EditAppointmentPage({
             />
           </label>
 
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted">Услуга</span>
-            <select
-              name="serviceId"
-              required
-              defaultValue={appointment.service_id ?? services[0]?.id}
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none focus:border-rose"
-            >
+          <div className="block text-sm md:col-span-2">
+            <span className="mb-1 block text-muted">Услуги (можно выбрать несколько)</span>
+            <div className="space-y-2 rounded-lg border border-border bg-white p-3">
               {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} — {Number(service.price)} BYN · {service.duration_min} мин
-                </option>
+                <label key={service.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="serviceIds"
+                    value={service.id}
+                    defaultChecked={selectedServiceIds.has(service.id)}
+                    className="h-4 w-4 rounded border-border text-rose focus:ring-rose"
+                  />
+                  <span>
+                    {service.name} — {Number(service.price)} BYN · {service.duration_min} мин
+                  </span>
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">
@@ -225,7 +239,7 @@ export default async function EditAppointmentPage({
             Сохранить изменения
           </button>
           <Link
-            href="/admin"
+            href="/admin/new"
             className="rounded-lg border border-border px-5 py-2.5 text-sm transition hover:border-rose hover:text-rose-dark"
           >
             Отмена
@@ -243,7 +257,7 @@ export default async function EditAppointmentPage({
         </p>
         <form action={cancelAppointment} className="mt-4">
           <input type="hidden" name="appointmentId" value={appointment.id} />
-          <input type="hidden" name="backTo" value="/admin" />
+          <input type="hidden" name="backTo" value="/admin/new" />
           <button
             type="submit"
             className="rounded-lg border border-border px-5 py-2.5 text-sm text-muted transition hover:border-rose hover:text-rose-dark"

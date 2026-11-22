@@ -1,4 +1,4 @@
-import { Pool, type QueryResult, type QueryResultRow } from 'pg';
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
 
 /**
  * Подключение к Postgres служебного раздела /admin.
@@ -29,4 +29,31 @@ export function query<T extends QueryResultRow = QueryResultRow>(
   values: QueryValue[] = [],
 ): Promise<QueryResult<T>> {
   return pool.query<T>(text, values);
+}
+
+/**
+ * Выполняет несколько запросов в одной транзакции на выделенном соединении.
+ * Нужна для записи на приём: проверка слота и вставка должны быть атомарными,
+ * иначе два одновременных клиента занимают одно время.
+ */
+export async function withTransaction<T>(
+  run: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+
+  try {
+    await client.query('begin');
+    const result = await run(client);
+    await client.query('commit');
+    return result;
+  } catch (error) {
+    try {
+      await client.query('rollback');
+    } catch {
+      // Ролбэк не должен скрывать исходную ошибку.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }

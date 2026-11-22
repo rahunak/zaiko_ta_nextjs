@@ -216,9 +216,36 @@
       .character-wrap { left: 0; right: 0; width: 100%; min-width: 0; justify-content: center; }
       .character-stage { height: min(52vh, 92vw); transform: translate3d(calc(8vw + var(--px, 0px)), var(--py, 0px), 0); }
     }
+
+    /* Встраивание в карточку успешной записи: персонаж занимает всю высоту блока,
+       без сдвигов и vh-размеров от основного макета. */
+    html.card .hero {
+      min-height: 100vh;
+      padding: 0;
+      align-items: flex-end;
+    }
+    html.card .character-wrap {
+      inset: 0;
+      width: 100%;
+      min-width: 0;
+      height: 100%;
+      justify-content: center;
+      align-items: flex-end;
+    }
+    html.card .character-stage {
+      height: 100%;
+      max-height: none;
+      width: auto;
+      max-width: 100%;
+      /* Персонаж в текстуре нарисован левее центра (справа пустое поле),
+         поэтому центрируем его по содержимому, а не по канве. */
+      transform: translateX(10.2%);
+    }
   </style>
   <script>
-    if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
+    var params = new URLSearchParams(location.search);
+    if (params.has('embed')) document.documentElement.classList.add('embed');
+    if (params.has('card')) document.documentElement.classList.add('card');
   </script>
 </head>
 <body>

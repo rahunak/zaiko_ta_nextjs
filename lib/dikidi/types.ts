@@ -29,7 +29,7 @@ export type DikidiJournalResponse = {
 /** Унифицированная запись для расписания админки. */
 export type ScheduleEntry = {
   key: string;
-  source: 'dikidi' | 'admin';
+  source: 'dikidi' | 'admin' | 'online';
   dikidiId: string | null;
   dateKey: string;
   startsAtIso: string;

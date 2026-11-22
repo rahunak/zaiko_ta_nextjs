@@ -23,8 +23,39 @@ create table if not exists services (
   price numeric(10, 2) not null,
   duration_min integer not null,
   dikidi_service_id text,
-  is_active boolean not null default true
+  is_active boolean not null default true,
+  -- Порядок показа: меньше — выше. Меняется в админке на /admin/services.
+  sort_order integer not null default 0
 );
+
+-- Колонка появилась позже: добавляем её и на существующей базе.
+alter table services add column if not exists sort_order integer not null default 0;
+
+-- Первичный порядок — тот же алфавитный, что был до ручной сортировки.
+-- Бэкфилл выполняется один раз: как только порядок задан, значения не трогаем,
+-- иначе повторный прогон схемы сбрасывал бы выбор мастера.
+update services s
+   set sort_order = x.rn
+  from (select id, row_number() over (order by name) as rn from services) x
+ where s.id = x.id
+   and not exists (select 1 from services where sort_order <> 0);
+
+-- Глобальные настройки проекта: одна строка.
+create table if not exists app_settings (
+  id smallint primary key check (id = 1),
+  -- Дублировать записи, созданные через /book, в DIKIDI.
+  -- По умолчанию выключено: онлайн-запись живёт только в БД.
+  book_sync_dikidi boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+insert into app_settings (id) values (1)
+  on conflict (id) do nothing;
+
+-- Настройки онлайн-записи: за сколько часов запись ещё открыта (0 — без ограничения)
+-- и буфер между процедурами на уборку/подготовку.
+alter table app_settings add column if not exists min_lead_hours integer not null default 2;
+alter table app_settings add column if not exists buffer_min integer not null default 10;
 
 create table if not exists appointments (
   id bigserial primary key,
@@ -56,6 +87,23 @@ alter table appointments add column if not exists updated_at timestamptz;
 -- Время отправки напоминания в Telegram за 60 минут до записи (null = ещё не отправлено).
 alter table appointments add column if not exists reminder_sent_at timestamptz;
 
+-- Напоминание клиенту в Telegram: неугадываемый токен для deep-link бота,
+-- chat_id после /start и отметка об отправке.
+alter table appointments add column if not exists client_token text;
+alter table appointments add column if not exists client_chat_id text;
+alter table appointments add column if not exists client_reminder_sent_at timestamptz;
+create unique index if not exists appointments_client_token_idx on appointments (client_token);
+
+update appointments
+   set client_token = md5(id::text || created_at::text || random()::text)
+ where client_token is null;
+
+-- Канал записи: admin — создана мастером, online — клиентом через /book,
+-- dikidi — пришла из журнала DIKIDI. Нужен для честной аналитики каналов.
+alter table appointments drop constraint if exists appointments_source_check;
+alter table appointments add constraint appointments_source_check
+  check (source in ('admin', 'online', 'dikidi'));
+
 -- Сессия кабинета DIKIDI для прямых HTTP-запросов (транспорт http).
 -- Одна строка: cookie `token` переживает рестарт и общая для всех инстансов на serverless.
 create table if not exists dikidi_auth (
@@ -78,6 +126,19 @@ alter table dikidi_auth add column if not exists last_sync_hash text;
 create index if not exists appointments_starts_idx on appointments (starts_at);
 create index if not exists appointments_source_idx on appointments (source);
 create index if not exists appointments_cancelled_idx on appointments (cancelled_at);
+
+-- Детализация выбранных услуг в записи (мультивыбор).
+create table if not exists appointment_services (
+  id bigserial primary key,
+  appointment_id bigint not null references appointments (id) on delete cascade,
+  service_id bigint references services (id),
+  service_name text not null,
+  price numeric(10, 2) not null default 0,
+  duration_min integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists appointment_services_appointment_idx on appointment_services (appointment_id);
 
 -- Расписание мастера для онлайн-записи (/book).
 create table if not exists master_schedule_default (

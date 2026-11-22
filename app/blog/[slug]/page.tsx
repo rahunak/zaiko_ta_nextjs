@@ -70,7 +70,8 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     })),
   }
 
-  const DIKIDI_URL = "https://dikidi.net/1784388?p=1.pi-ssm"
+  // Запись ведём на собственную форму: DIKIDI больше не используется.
+  const BOOKING_URL = "/book"
   const WHATSAPP_URL = "https://wa.me/375256827229"
 
   return (
@@ -136,9 +137,9 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
             Удобно добираться из Толочина, Новолукомля и Борисова.
           </p>
           <div className="flex flex-wrap gap-3">
-            <a href={DIKIDI_URL} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:opacity-90" style={{ backgroundColor: "#C9956A" }}>
+            <Link href={BOOKING_URL} className="rounded-full px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:opacity-90" style={{ backgroundColor: "#C9956A" }}>
               Записаться онлайн
-            </a>
+            </Link>
             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:opacity-90" style={{ border: "1px solid #C9956A", color: "#C9956A" }}>
               Написать в WhatsApp
             </a>

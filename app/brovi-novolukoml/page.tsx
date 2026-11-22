@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import GeoPage, { type GeoCityData } from "@/components/GeoPage"
+import { getSiteServices } from "@/lib/site-services"
 
 const PHONE = "+375256827229"
 const PHONE_DISPLAY = "+375 (25) 68-27-229"
@@ -115,7 +116,10 @@ const faqSchema = {
   })),
 }
 
-export default function BroviNovolukoml() {
+export default async function BroviNovolukoml() {
+  // Услуги и цены — из БД, чтобы совпадали с /book.
+  const services = await getSiteServices()
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }} />
@@ -123,6 +127,7 @@ export default function BroviNovolukoml() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <GeoPage
         data={data}
+        services={services}
         phone={PHONE}
         phoneDisplay={PHONE_DISPLAY}
         whatsappUrl={WHATSAPP_URL}

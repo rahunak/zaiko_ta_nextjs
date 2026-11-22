@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
+import AutoRefresh from '@/components/AutoRefresh';
 import { fetchDikidiSchedule } from '@/lib/dikidi/source';
 import { syncDikidiEntriesIfNeeded } from '@/lib/dikidi/sync';
 import { sendDueReminders } from '@/lib/notifications/reminders';
@@ -33,6 +34,7 @@ type Range = 'day' | 'week';
 
 type LocalRow = {
   id: string;
+  source: 'admin' | 'online';
   client_name: string;
   client_phone: string;
   service_name: string;
@@ -54,7 +56,7 @@ function localEntries(rows: LocalRow[]): ScheduleEntry[] {
 
     return {
       key: `admin:${row.id}`,
-      source: 'admin',
+      source: row.source,
       dikidiId: row.dikidi_id,
       dateKey: belarusDateKey(startsAt),
       startsAtIso: startsAt.toISOString(),
@@ -100,15 +102,18 @@ function sourceBadge(entry: ScheduleEntry) {
     return { label: 'DIKIDI', className: 'bg-gold-light text-gold' };
   }
 
+  // Онлайн-запись (/book) и запись, созданная мастером, — разные каналы.
+  const channel = entry.source === 'online' ? 'онлайн' : 'админка';
+
   if (entry.syncStatus === 'synced') {
-    return { label: 'админка · в DIKIDI', className: 'bg-rose-light text-rose-dark' };
+    return { label: `${channel} · в DIKIDI`, className: 'bg-rose-light text-rose-dark' };
   }
 
   if (entry.syncStatus === 'failed') {
-    return { label: 'админка · не отправлено', className: 'bg-gold-light text-gold' };
+    return { label: `${channel} · не отправлено`, className: 'bg-gold-light text-gold' };
   }
 
-  return { label: 'админка · в БД', className: 'bg-cream text-muted' };
+  return { label: `${channel} · в БД`, className: 'bg-cream text-muted' };
 }
 
 export default async function SchedulePage({
@@ -165,10 +170,10 @@ export default async function SchedulePage({
   }
 
   const { rows: localRows } = await query<LocalRow>(
-    `select id, client_name, client_phone, service_name, starts_at,
+    `select id, source, client_name, client_phone, service_name, starts_at,
             duration_min, price, comment, sync_status, sync_error, dikidi_id
        from appointments
-      where source = 'admin'
+      where source in ('admin', 'online')
         and cancelled_at is null
         and starts_at >= $1 and starts_at < $2
       order by starts_at`,
@@ -210,6 +215,7 @@ export default async function SchedulePage({
 
   return (
     <div className="space-y-6">
+      <AutoRefresh />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl">Расписание</h1>
@@ -380,7 +386,7 @@ export default async function SchedulePage({
                         {badge.label}
                       </span>
 
-                      {entry.source === 'admin' ? (
+                      {entry.source !== 'dikidi' ? (
                         <>
                           <Link
                             href={`/admin/appointments/${entry.key.replace('admin:', '')}`}

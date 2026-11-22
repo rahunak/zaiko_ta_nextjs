@@ -14,11 +14,11 @@ export default async function ProtectedAdminLayout({
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-3">
           <div className="flex flex-wrap items-center gap-6">
-            <Link href="/admin" className="font-display text-lg">
+            <Link href="/admin/schedule" className="font-display text-lg">
               Зайко · Админка
             </Link>
             <nav className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-charcoal hover:text-rose-dark">
+              <Link href="/admin/new" className="text-charcoal hover:text-rose-dark">
                 Новая запись
               </Link>
               <Link
@@ -32,6 +32,12 @@ export default async function ProtectedAdminLayout({
                 className="text-charcoal hover:text-rose-dark"
               >
                 График
+              </Link>
+              <Link
+                href="/admin/services"
+                className="text-charcoal hover:text-rose-dark"
+              >
+                Порядок услуг
               </Link>
             </nav>
           </div>

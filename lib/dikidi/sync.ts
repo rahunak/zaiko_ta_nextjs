@@ -201,7 +201,7 @@ export async function syncDikidiEntriesToDb(entries: ScheduleEntry[]): Promise<v
       `insert into appointments
          (client_name, client_phone, service_id, service_name, starts_at,
           duration_min, price, comment, source, dikidi_id, sync_status)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'admin', $9, 'synced')
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'dikidi', $9, 'synced')
        on conflict (dikidi_id) do update set
          client_name = excluded.client_name,
          client_phone = excluded.client_phone,

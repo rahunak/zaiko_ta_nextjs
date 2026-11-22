@@ -5,6 +5,7 @@ import { loginAction } from '../actions';
 const ERROR_MESSAGES: Record<string, string> = {
   empty: 'Введите логин и пароль.',
   invalid: 'Неверный логин или пароль.',
+  rate_limited: 'Слишком много попыток входа. Попробуйте через 10 минут.',
 };
 
 export default async function LoginPage({
@@ -15,7 +16,7 @@ export default async function LoginPage({
   const user = await getCurrentUser();
 
   if (user) {
-    redirect('/admin');
+    redirect('/admin/schedule');
   }
 
   const { error } = await searchParams;

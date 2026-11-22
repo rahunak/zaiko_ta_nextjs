@@ -1,6 +1,6 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { verifyPassword } from '@/lib/auth/password';
@@ -10,11 +10,18 @@ import {
   requireUser,
 } from '@/lib/auth/session';
 import { query } from '@/lib/db';
+import { hasTimeConflict } from '@/lib/availability';
 import { checkDikidiSlot } from '@/lib/dikidi/availability';
 import { syncDikidiOnLogin } from '@/lib/dikidi/sync';
 import { removeDikidiRecord, sendAppointmentToDikidi } from '@/lib/dikidi/send';
 import { belarusDateKey, toBelarusDate } from '@/lib/dikidi/time';
 import { withQuery } from '@/lib/url';
+import {
+  attemptsLeft,
+  clientKey,
+  recordFailure,
+  resetAttempts,
+} from '@/lib/rate-limit';
 
 const PHONE_PATTERN = /^\+?\d[\d\s()-]{6,19}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,12 +31,21 @@ function fail(code: string): never {
   redirect(`/admin/login?error=${code}`);
 }
 
+const LOGIN_LIMIT = 5;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+
 export async function loginAction(formData: FormData): Promise<void> {
   const login = String(formData.get('login') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
 
   if (!login || !password) {
     fail('empty');
+  }
+
+  // Перебор пароля: 5 неудачных попыток с одного IP за 10 минут.
+  const key = clientKey(await headers(), 'login');
+  if (attemptsLeft(key, LOGIN_LIMIT) <= 0) {
+    fail('rate_limited');
   }
 
   const { rows } = await query<{ id: string; password_hash: string }>(
@@ -43,9 +59,11 @@ export async function loginAction(formData: FormData): Promise<void> {
   if (!user || !valid) {
     // Небольшая задержка выравнивает время ответа для несуществующего логина.
     await new Promise((resolve) => setTimeout(resolve, 300));
+    recordFailure(key, LOGIN_WINDOW_MS);
     fail('invalid');
   }
 
+  resetAttempts(key);
   await createSession(Number(user.id));
 
   // Подтягиваем записи DIKIDI в БД на этапе входа, чтобы мастер видел актуальное расписание.
@@ -55,7 +73,7 @@ export async function loginAction(formData: FormData): Promise<void> {
     // Вход не должен падать из-за синхронизации.
   }
 
-  redirect('/admin');
+  redirect('/admin/schedule');
 }
 
 export async function logoutAction(): Promise<void> {
@@ -68,28 +86,38 @@ export async function createAppointment(formData: FormData): Promise<void> {
 
   const clientName = String(formData.get('clientName') ?? '').trim();
   const clientPhone = String(formData.get('clientPhone') ?? '').trim();
-  const serviceId = String(formData.get('serviceId') ?? '').trim();
+  const serviceIds = formData
+    .getAll('serviceIds')
+    .map((v) => String(v).trim())
+    .filter(Boolean)
+    .flatMap((v) => v.split(','))
+    .map((v) => v.trim())
+    .filter((v) => /^\d+$/.test(v));
+  if (serviceIds.length === 0) {
+    const sid = String(formData.get('serviceId') ?? '').trim();
+    if (sid) serviceIds.push(sid);
+  }
   const date = String(formData.get('date') ?? '').trim();
   const time = String(formData.get('time') ?? '').trim();
   const comment = String(formData.get('comment') ?? '').trim();
   const syncToDikidi = formData.get('syncToDikidi') === 'on';
 
   if (clientName.length < 2 || clientName.length > 80) {
-    redirect('/admin?error=invalid_name');
+    redirect('/admin/new?error=invalid_name');
   }
   if (!PHONE_PATTERN.test(clientPhone)) {
-    redirect('/admin?error=invalid_phone');
+    redirect('/admin/new?error=invalid_phone');
   }
   if (comment.length > 500) {
-    redirect('/admin?error=comment_too_long');
+    redirect('/admin/new?error=comment_too_long');
   }
   if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
-    redirect('/admin?error=invalid_datetime');
+    redirect('/admin/new?error=invalid_datetime');
   }
 
   const startsAt = toBelarusDate(date, time);
   if (!startsAt) {
-    redirect('/admin?error=invalid_datetime');
+    redirect('/admin/new?error=invalid_datetime');
   }
 
   const { rows: serviceRows } = await query<{
@@ -101,13 +129,35 @@ export async function createAppointment(formData: FormData): Promise<void> {
   }>(
     `select id, name, price, duration_min, dikidi_service_id
        from services
-      where id = $1 and is_active = true`,
-    [Number(serviceId) || 0],
+      where id = any($1::bigint[]) and is_active = true`,
+    [serviceIds.map(Number)],
   );
 
-  const service = serviceRows[0];
-  if (!service) {
-    redirect('/admin?error=invalid_service');
+  if (serviceRows.length === 0 || serviceRows.length !== serviceIds.length) {
+    redirect('/admin/new?error=invalid_service');
+  }
+
+  const totalDuration = serviceRows.reduce((sum, s) => sum + s.duration_min, 0);
+  const totalPrice = serviceRows.reduce((sum, s) => sum + Number(s.price), 0);
+  const serviceName = serviceRows.map((s) => s.name).join(' + ');
+  const primaryServiceId = Number(serviceRows[0].id);
+  const primaryDikidiServiceId = serviceRows[0].dikidi_service_id;
+
+  // Ручная запись тоже не должна вставать на занятое время: раньше проверка была
+  // только в /book, и мастер мог молча создать две записи на один слот.
+  const slotConflict = await hasTimeConflict(
+    belarusDateKey(startsAt),
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Minsk',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(startsAt),
+    totalDuration,
+  );
+
+  if (slotConflict) {
+    redirect('/admin/new?error=slot_conflict');
   }
 
   const { rows: inserted } = await query<{ id: string }>(
@@ -119,17 +169,25 @@ export async function createAppointment(formData: FormData): Promise<void> {
     [
       clientName,
       clientPhone,
-      Number(service.id),
-      service.name,
+      primaryServiceId,
+      serviceName,
       startsAt,
-      service.duration_min,
-      Number(service.price),
+      totalDuration,
+      totalPrice,
       comment,
       user.id,
     ],
   );
 
   const appointmentId = Number(inserted[0].id);
+
+  for (const s of serviceRows) {
+    await query(
+      `insert into appointment_services (appointment_id, service_id, service_name, price, duration_min)
+       values ($1, $2, $3, $4, $5)`,
+      [appointmentId, Number(s.id), s.name, Number(s.price), s.duration_min],
+    );
+  }
 
   // Сохраняем выбор пользователя: дублировать ли запись в DIKIDI.
   const cookieStore = await cookies();
@@ -146,7 +204,7 @@ export async function createAppointment(formData: FormData): Promise<void> {
     const availability = await checkDikidiSlot({
       dateKey: belarusDateKey(startsAt),
       startsAt,
-      durationMin: service.duration_min,
+      durationMin: totalDuration,
     });
 
     if (availability.verdict === 'blocked') {
@@ -157,17 +215,17 @@ export async function createAppointment(formData: FormData): Promise<void> {
 
       revalidatePath('/admin');
       revalidatePath('/admin/schedule');
-      redirect(`/admin?created=${appointmentId}&sync=local`);
+      redirect(`/admin/new?created=${appointmentId}&sync=local`);
     }
 
     const sendResult = await sendAppointmentToDikidi({
       clientName,
       clientPhone,
-      serviceName: service.name,
-      dikidiServiceId: service.dikidi_service_id,
+      serviceName: serviceName,
+      dikidiServiceId: primaryDikidiServiceId,
       startsAt,
-      durationMin: service.duration_min,
-      price: Number(service.price),
+      durationMin: totalDuration,
+      price: totalPrice,
       comment,
     });
 
@@ -188,7 +246,7 @@ export async function createAppointment(formData: FormData): Promise<void> {
 
   revalidatePath('/admin');
   revalidatePath('/admin/schedule');
-  redirect(`/admin?created=${appointmentId}`);
+  redirect(`/admin/new?created=${appointmentId}`);
 }
 
 type StoredAppointment = {
@@ -202,7 +260,7 @@ type StoredAppointment = {
 };
 
 /** Куда возвращать пользователя после действия — только свои страницы. */
-function safeBackTo(value: string | null, fallback = '/admin'): string {
+function safeBackTo(value: string | null, fallback = '/admin/schedule'): string {
   return value && value.startsWith('/admin') ? value : fallback;
 }
 
@@ -228,7 +286,7 @@ export async function cancelAppointment(formData: FormData): Promise<void> {
   const { rows } = await query<StoredAppointment>(
     `select id, client_name, client_phone, service_id, starts_at, dikidi_id, sync_status
        from appointments
-      where id = $1 and source = 'admin' and cancelled_at is null`,
+      where id = $1 and source in ('admin', 'online') and cancelled_at is null`,
     [id],
   );
 
@@ -362,13 +420,13 @@ export async function claimDikidiAppointment(formData: FormData): Promise<void> 
   }
 
   const { rows: serviceRows } = serviceName
-    ? await query<{ id: string }>(
-        `select id from services
+    ? await query<{ id: string; name: string; price: string; duration_min: number }>(
+        `select id, name, price, duration_min from services
           where is_active = true and lower(name) = lower($1)
           limit 1`,
         [serviceName],
       )
-    : { rows: [] as Array<{ id: string }> };
+    : { rows: [] as Array<{ id: string; name: string; price: string; duration_min: number }> };
 
   let insertedId: string;
 
@@ -377,7 +435,7 @@ export async function claimDikidiAppointment(formData: FormData): Promise<void> 
       `insert into appointments
          (client_name, client_phone, service_id, service_name, starts_at,
           duration_min, price, comment, source, dikidi_id, sync_status, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'admin', $9, 'synced', $10)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'dikidi', $9, 'synced', $10)
        returning id`,
       [
         clientName || 'Клиент DIKIDI',
@@ -391,9 +449,16 @@ export async function claimDikidiAppointment(formData: FormData): Promise<void> 
         dikidiId,
         user.id,
       ],
-    );
+    );    insertedId = inserted[0].id;
 
-    insertedId = inserted[0].id;
+    if (serviceRows[0]) {
+      await query(
+        `insert into appointment_services (appointment_id, service_id, service_name, price, duration_min)
+         values ($1, $2, $3, $4, $5)`,
+        [insertedId, Number(serviceRows[0].id), serviceRows[0].name, Number(serviceRows[0].price), serviceRows[0].duration_min],
+      );
+    }
+
   } catch (error) {
     // Параллельный клик по той же записи: dikidi_id уникален — открываем уже созданную строку.
     if ((error as { code?: string }).code === '23505') {
@@ -430,7 +495,17 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   const id = Number(formData.get('appointmentId') ?? 0);
   const clientName = String(formData.get('clientName') ?? '').trim();
   const clientPhone = String(formData.get('clientPhone') ?? '').trim();
-  const serviceId = String(formData.get('serviceId') ?? '').trim();
+  const serviceIds = formData
+    .getAll('serviceIds')
+    .map((v) => String(v).trim())
+    .filter(Boolean)
+    .flatMap((v) => v.split(','))
+    .map((v) => v.trim())
+    .filter((v) => /^\d+$/.test(v));
+  if (serviceIds.length === 0) {
+    const sid = String(formData.get('serviceId') ?? '').trim();
+    if (sid) serviceIds.push(sid);
+  }
   const date = String(formData.get('date') ?? '').trim();
   const time = String(formData.get('time') ?? '').trim();
   const comment = String(formData.get('comment') ?? '').trim();
@@ -438,7 +513,7 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   const editPath = `/admin/appointments/${id}`;
 
   if (!Number.isFinite(id) || id <= 0) {
-    redirect('/admin?error=invalid_id');
+    redirect('/admin/new?error=invalid_id');
   }
   if (clientName.length < 2 || clientName.length > 80) {
     redirect(`${editPath}?error=invalid_name`);
@@ -467,25 +542,30 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   }>(
     `select id, name, price, duration_min, dikidi_service_id
        from services
-      where id = $1 and is_active = true`,
-    [Number(serviceId) || 0],
+      where id = any($1::bigint[]) and is_active = true`,
+    [serviceIds.map(Number)],
   );
 
-  const service = serviceRows[0];
-  if (!service) {
+  if (serviceRows.length === 0 || serviceRows.length !== serviceIds.length) {
     redirect(`${editPath}?error=invalid_service`);
   }
+
+  const totalDuration = serviceRows.reduce((sum, s) => sum + s.duration_min, 0);
+  const totalPrice = serviceRows.reduce((sum, s) => sum + Number(s.price), 0);
+  const serviceName = serviceRows.map((s) => s.name).join(' + ');
+  const primaryServiceId = Number(serviceRows[0].id);
+  const primaryDikidiServiceId = serviceRows[0].dikidi_service_id;
 
   const { rows: currentRows } = await query<StoredAppointment>(
     `select id, client_name, client_phone, service_id, starts_at, dikidi_id, sync_status
        from appointments
-      where id = $1 and source = 'admin' and cancelled_at is null`,
+      where id = $1 and source in ('admin', 'online') and cancelled_at is null`,
     [id],
   );
 
   const current = currentRows[0];
   if (!current) {
-    redirect('/admin?error=not_found');
+    redirect('/admin/new?error=not_found');
   }
 
   await query(
@@ -504,25 +584,35 @@ export async function updateAppointment(formData: FormData): Promise<void> {
       id,
       clientName,
       clientPhone,
-      Number(service.id),
-      service.name,
+      primaryServiceId,
+      serviceName,
       startsAt,
-      service.duration_min,
-      Number(service.price),
+      totalDuration,
+      totalPrice,
       comment,
     ],
   );
 
+  // Обновляем детализацию услуг.
+  await query(`delete from appointment_services where appointment_id = $1`, [id]);
+  for (const s of serviceRows) {
+    await query(
+      `insert into appointment_services (appointment_id, service_id, service_name, price, duration_min)
+       values ($1, $2, $3, $4, $5)`,
+      [id, Number(s.id), s.name, Number(s.price), s.duration_min],
+    );
+  }
+
   if (!syncToDikidi) {
     revalidatePath('/admin');
     revalidatePath('/admin/schedule');
-    redirect(`/admin?updated=${id}&sync=local`);
+    redirect(`/admin/new?updated=${id}&sync=local`);
   }
 
   const availability = await checkDikidiSlot({
     dateKey: belarusDateKey(startsAt),
     startsAt,
-    durationMin: service.duration_min,
+    durationMin: totalDuration,
     ignoreDikidiId: current.dikidi_id,
   });
 
@@ -540,17 +630,17 @@ export async function updateAppointment(formData: FormData): Promise<void> {
 
     revalidatePath('/admin');
     revalidatePath('/admin/schedule');
-    redirect(`/admin?updated=${id}&sync=${current.dikidi_id ? 'failed' : 'blocked'}`);
+    redirect(`/admin/new?updated=${id}&sync=${current.dikidi_id ? 'failed' : 'blocked'}`);
   }
 
   const sendResult = await sendAppointmentToDikidi({
     clientName,
     clientPhone,
-    serviceName: service.name,
-    dikidiServiceId: service.dikidi_service_id,
+    serviceName: serviceName,
+    dikidiServiceId: primaryDikidiServiceId,
     startsAt,
-    durationMin: service.duration_min,
-    price: Number(service.price),
+    durationMin: totalDuration,
+    price: totalPrice,
     comment,
     dikidiId: current.dikidi_id,
   });
@@ -572,5 +662,5 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   revalidatePath('/admin');
   revalidatePath('/admin/schedule');
 
-  redirect(`/admin?updated=${id}&sync=${sendResult.status === 'synced' ? 'synced' : 'failed'}`);
+  redirect(`/admin/new?updated=${id}&sync=${sendResult.status === 'synced' ? 'synced' : 'failed'}`);
 }

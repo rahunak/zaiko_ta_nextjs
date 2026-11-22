@@ -28,7 +28,14 @@ export async function sendDueReminders(): Promise<number> {
   for (const row of rows) {
     const startsAt = new Date(row.starts_at);
     const text = `У вас запись: ${row.client_name} — ${row.service_name}, ${belarusLongDate(startsAt)} в ${belarusTime(startsAt)}.`;
-    await sendTelegramMessage(text);
+    const delivered = await sendTelegramMessage(text);
+
+    // Помечаем отправленным только при успехе: иначе сбой Telegram
+    // „съедал“ напоминание навсегда — повтора не было.
+    if (!delivered) {
+      continue;
+    }
+
     await query('update appointments set reminder_sent_at = now() where id = $1', [row.id]);
     sent += 1;
   }

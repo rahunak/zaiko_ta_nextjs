@@ -54,13 +54,14 @@ async function main(): Promise<void> {
     await client.query(schema);
     console.log('✓ Схема применена (admin_users, admin_sessions, services, appointments)');
 
-    for (const service of SEED_SERVICES) {
+    for (const [index, service] of SEED_SERVICES.entries()) {
       await client.query(
-        `insert into services (name, price, duration_min, dikidi_service_id)
-         values ($1, $2, $3, $4)
+        `insert into services (name, price, duration_min, dikidi_service_id, sort_order)
+         values ($1, $2, $3, $4, $5)
          on conflict (name) do update
             set dikidi_service_id = coalesce(services.dikidi_service_id, excluded.dikidi_service_id)`,
-        [service.name, service.price, service.durationMin, service.dikidiServiceId],
+        // sort_order задаётся только при вставке: выбор порядка в админке не перезаписываем.
+        [service.name, service.price, service.durationMin, service.dikidiServiceId, index + 1],
       );
     }
     const services = await client.query<{ count: string }>(

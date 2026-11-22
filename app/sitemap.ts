@@ -38,8 +38,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
-    // GOTCHA: Если в будущем добавишь отдельные роуты (например, /privacy или /terms),
-    // добавь их сюда. Для чистого лендинга с якорями (#reviews)
-    // отдельные URL в sitemap не нужны.
+    // Документ о сборе и обработке данных — ссылка из футера.
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: currentDate,
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    },
+    // GOTCHA: новые отдельные роуты (например, /terms) добавляй сюда же.
+    // Для чистого лендинга с якорями (#reviews) отдельные URL в sitemap не нужны.
   ]
 }

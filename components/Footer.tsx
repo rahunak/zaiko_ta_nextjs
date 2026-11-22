@@ -82,7 +82,7 @@ export function Footer({ phone, phoneDisplay, telegramUrl, whatsappUrl, viberUrl
             <span>© 2026 Зайко Татьяна. Все права защищены.</span>
             <span style={{ color: "#4A3E42" }}>УНП KE8812226</span>
           </div>
-          <a href="#" className="hover:text-white transition-all duration-200 hover:underline">Политика конфиденциальности</a>
+          <a href="/privacy" className="hover:text-white transition-all duration-200 hover:underline">Согласие на обработку данных</a>
         </div>
       </div>
     </footer>

@@ -21,7 +21,7 @@ export function Hero({ dikidiUrl, phone, scrollTo }: HeroProps) {
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full">
         <div className="max-w-xl">
           {/* Badges */}
-          <div className="flex flex-wrap gap-2 mb-6 animate-fade-up animate-fade-up-delay-1">
+          <div className="flex flex-wrap gap-2 mb-6 animate-rise animate-rise-delay-1">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: "rgba(201,149,106,0.2)", color: "#F5C89A", border: "1px solid rgba(201,149,106,0.35)" }}>
               ★ Рейтинг 4.5 на Яндексе
             </span>
@@ -30,18 +30,18 @@ export function Hero({ dikidiUrl, phone, scrollTo }: HeroProps) {
             </span>
           </div>
 
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-500 leading-tight mb-5 animate-fade-up animate-fade-up-delay-2" style={{ color: "#FAF6F2" }}>
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-500 leading-tight mb-5 animate-rise animate-rise-delay-2" style={{ color: "#FAF6F2" }}>
             Ламинирование<br />
             <span style={{ color: "#C9956A" }}>ресниц и бровей</span><br />
             в Крупках
           </h1>
 
-          <p className="text-base sm:text-lg leading-relaxed mb-8 animate-fade-up animate-fade-up-delay-3" style={{ color: "#CCC0BE" }}>
+          <p className="text-base sm:text-lg leading-relaxed mb-8 animate-rise animate-rise-delay-3" style={{ color: "#CCC0BE" }}>
             Естественная красота, гипоаллергенные материалы,<br className="hidden sm:block" />
             5+ лет опыта. Мастер Зайко Татьяна.
           </p>
 
-          <div className="flex flex-wrap gap-3 animate-fade-up animate-fade-up-delay-3">
+          <div className="flex flex-wrap gap-3 animate-rise animate-rise-delay-3">
             <a
               href={dikidiUrl}
               target={dikidiUrl.startsWith('http') ? '_blank' : undefined}

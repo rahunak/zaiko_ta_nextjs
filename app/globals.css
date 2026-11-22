@@ -47,6 +47,20 @@ body {
 .animate-fade-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
 .animate-fade-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
 
+/* Reveal первого экрана: только сдвиг, без opacity: 0.
+   Chrome не считает полностью прозрачный элемент кандидатом LCP, поэтому h1
+   героя с opacity: 0 отдавал LCP нижней плавающей кнопке и ждал конца
+   анимации. Так текст виден сразу и LCP = момент первой отрисовки. */
+@keyframes riseUp {
+  from { transform: translateY(24px); }
+  to { transform: translateY(0); }
+}
+
+.animate-rise { animation: riseUp 0.6s ease both; }
+.animate-rise-delay-1 { animation-delay: 0.1s; }
+.animate-rise-delay-2 { animation-delay: 0.2s; }
+.animate-rise-delay-3 { animation-delay: 0.3s; }
+
 /* Before/After gallery hover */
 .gallery-card:hover .gallery-overlay {
   opacity: 1;

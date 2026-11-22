@@ -1,4 +1,7 @@
+"use client"
+
 import Image from "next/image"
+import { useEffect, useRef, useState } from "react"
 
 interface ContactsProps {
   phone: string
@@ -12,6 +15,29 @@ interface ContactsProps {
 }
 
 export function Contacts({ phone, phoneDisplay, whatsappUrl, viberUrl, telegramUrl, instagramUrl, dikidiUrl, scrollTo }: ContactsProps) {
+  // Виджет карты Яндекса весит ~2,3 МБ (стили тайлов, шрифты, воркеры) и грузится
+  // отдельным документом с собственным React. Монтируем iframe только когда
+  // секция «Контакты» подходит к вьюпорту: у посетителя без скролла до низа
+  // этих мегабайт и главного потока просто нет.
+  const mapRef = useRef<HTMLDivElement>(null)
+  const [mapVisible, setMapVisible] = useState(false)
+
+  useEffect(() => {
+    const el = mapRef.current
+    if (!el || mapVisible) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setMapVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: "600px 0px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [mapVisible])
+
   return (
     <section id="contacts" className="py-20 px-4 sm:px-6" style={{ backgroundColor: "#FAF6F2" }}>
       <div className="max-w-6xl mx-auto">
@@ -22,13 +48,15 @@ export function Contacts({ phone, phoneDisplay, whatsappUrl, viberUrl, telegramU
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Map */}
-          <div className="rounded-3xl overflow-hidden" style={{ height: "420px", border: "1px solid #E8DCDA" }}>
-            <iframe src="https://yandex.by/map-widget/v1/?z=12&ol=biz&oid=17028481096" width="100%"
-              height="100%"
-              title="Карта - Зайко Татьяна, Крупки"
-              frameBorder="0"
-              allowFullScreen>
-            </iframe>
+          <div ref={mapRef} className="rounded-3xl overflow-hidden" style={{ height: "420px", border: "1px solid #E8DCDA", backgroundColor: "#F2E4EA" }}>
+            {mapVisible && (
+              <iframe src="https://yandex.by/map-widget/v1/?z=12&ol=biz&oid=17028481096" width="100%"
+                height="100%"
+                title="Карта - Зайко Татьяна, Крупки"
+                frameBorder="0"
+                allowFullScreen>
+              </iframe>
+            )}
           </div>
 
           {/* Info */}

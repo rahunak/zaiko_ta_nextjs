@@ -5,6 +5,9 @@
  * Скрипт только читает состояние и, по флагу --send, отправляет одно тестовое
  * сообщение. Ничего в БД не меняет, напоминания не рассылает.
  *
+ * Про напоминания проверяет очередь `reminders`, журнал `cron_runs` и свежесть
+ * последнего успешного тика — это главный признак, что система жива.
+ *
  * Запуск (нужны прод-переменные окружения):
  *   bun run scripts/telegram-check.ts            # только проверки
  *   bun run scripts/telegram-check.ts --send     # + тестовое сообщение мастеру
@@ -18,9 +21,6 @@ import { Pool } from 'pg';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 
-/** Пороги напоминаний: должны совпадать с кодом приложения. */
-const MASTER_REMINDER_HOURS = 1;
-const CLIENT_REMINDER_HOURS = 1;
 const WANT_SEND = process.argv.includes('--send');
 
 type Status = 'ok' | 'warn' | 'fail';
@@ -289,31 +289,27 @@ async function checkMasterDelivery(): Promise<void> {
   }
 }
 
-type AppointmentRow = {
-  id: string;
-  client_name: string;
-  service_name: string;
-  starts_at: Date;
-  client_chat_id: string | null;
-  reminder_sent_at: Date | null;
-  client_reminder_sent_at: Date | null;
+type QueueState = {
+  minutes: number | null;
+  runs_today: number;
+  errors_today: number;
 };
 
-const REQUIRED_COLUMNS = [
-  'reminder_sent_at',
-  'client_token',
-  'client_chat_id',
-  'client_reminder_sent_at',
-];
+type ProblemRow = {
+  kind: string;
+  status: string;
+  last_error: string | null;
+  starts_at: Date;
+};
 
 async function checkDatabase(): Promise<void> {
-  console.log('\n— База данных —');
+  console.log('\n— Очередь напоминаний —');
 
   if (!process.env.DATABASE_URL) {
     report(
       'warn',
-      'DATABASE_URL не задан — проверка БД пропущена',
-      'Скрипт подключится по локальному значению по умолчанию; для прода передайте строку подключения.',
+      'DATABASE_URL не задан — проверка БД идёт по локальному значению по умолчанию',
+      'Для прода передайте строку подключения.',
     );
   }
 
@@ -326,83 +322,137 @@ async function checkDatabase(): Promise<void> {
   });
 
   try {
-    const columns = await pool.query<{ column_name: string }>(
-      `select column_name from information_schema.columns where table_name = 'appointments'`,
+    const tables = await pool.query<{ table_name: string }>(
+      `select table_name
+         from information_schema.tables
+        where table_schema = 'public' and table_name in ('reminders', 'cron_runs')`,
     );
-    const present = new Set(columns.rows.map((row) => row.column_name));
-    const missing = REQUIRED_COLUMNS.filter((column) => !present.has(column));
+    const present = new Set(tables.rows.map((row) => row.table_name));
+    const missing = ['reminders', 'cron_runs'].filter((name) => !present.has(name));
 
     if (missing.length > 0) {
       report(
         'fail',
-        `В таблице appointments нет колонок: ${missing.join(', ')}`,
-        'Примените схему: bun run db:init (идемпотентно).',
+        `В БД нет таблиц: ${missing.join(', ')}`,
+        'Примените схему: psql "$DATABASE_URL" -f db/schema.sql (идемпотентно).',
       );
       return;
     }
-    report('ok', 'Колонки напоминаний в appointments на месте');
+    report('ok', 'Таблицы очереди reminders и cron_runs на месте');
 
-    const upcoming = await pool.query<AppointmentRow>(
-      `select id, client_name, service_name, starts_at,
-              client_chat_id, reminder_sent_at, client_reminder_sent_at
-         from appointments
-        where cancelled_at is null
-          and starts_at > now()
-        order by starts_at
-        limit 20`,
+    const counters = await pool.query<{ status: string; count: number }>(
+      `select status, count(*)::int as count
+         from reminders
+        where due_at > now() - interval '30 days'
+        group by status
+        order by status`,
     );
 
-    if (upcoming.rows.length === 0) {
-      report('warn', 'Будущих записей нет — проверять нечего', 'Создайте запись на /book.');
-      return;
-    }
-
-    const now = Date.now();
-    const connected = upcoming.rows.filter((row) => row.client_chat_id);
-    report(
-      connected.length > 0 ? 'ok' : 'warn',
-      `Записей с привязанным Telegram-клиентом: ${connected.length} из ${upcoming.rows.length}`,
-      connected.length === 0
-        ? 'Ни один клиент не нажал /start — напоминания клиентам отправлять некому.'
-        : undefined,
-    );
-
-    for (const row of upcoming.rows) {
-      const hoursLeft = (new Date(row.starts_at).getTime() - now) / 3_600_000;
-      const masterDue = hoursLeft <= MASTER_REMINDER_HOURS && !row.reminder_sent_at;
-      const clientDue =
-        hoursLeft <= CLIENT_REMINDER_HOURS && row.client_chat_id && !row.client_reminder_sent_at;
-      const flags = [
-        masterDue ? 'мастеру пора' : row.reminder_sent_at ? 'мастеру отправлено' : '',
-        !row.client_chat_id
-          ? 'клиент без Telegram'
-          : clientDue
-            ? 'клиенту пора'
-            : row.client_reminder_sent_at
-              ? 'клиенту отправлено'
-              : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-
-      console.log(
-        `    #${row.id} ${row.client_name} · ${row.service_name} · ${new Date(row.starts_at).toISOString()} (через ${hoursLeft.toFixed(1)} ч) — ${flags}`,
+    if (counters.rows.length === 0) {
+      report('warn', 'В очереди пока нет строк', 'Создайте запись на /book или запустите тик.');
+    } else {
+      report(
+        'ok',
+        `Очередь: ${counters.rows.map((row) => `${row.status} ${row.count}`).join(' · ')}`,
       );
     }
 
-    const dueNow = upcoming.rows.filter(
-      (row) =>
-        (new Date(row.starts_at).getTime() - now) / 3_600_000 <= CLIENT_REMINDER_HOURS &&
-        !row.client_reminder_sent_at &&
-        row.client_chat_id,
+    const state = await pool.query<QueueState>(
+      `select
+         (select extract(epoch from (now() - max(finished_at)))::float8 / 60
+            from cron_runs
+           where finished_at is not null and error is null) as minutes,
+         (select count(*)::int from cron_runs
+           where started_at > now() - interval '1 day') as runs_today,
+         (select count(*)::int from cron_runs
+           where error is not null and started_at > now() - interval '1 day') as errors_today`,
     );
-    if (dueNow.length > 0) {
+
+    const { minutes, runs_today: runsToday, errors_today: errorsToday } = state.rows[0];
+
+    if (runsToday === 0) {
+      report(
+        'fail',
+        'За сутки не было ни одного тика — напоминания не отправляются',
+        'Проверьте задание на cron-job.org/QStash и CRON_SECRET. Вручную: ' +
+          'curl -H "Authorization: Bearer $CRON_SECRET" https://zaiko.by/api/cron/dispatch',
+      );
+    } else if (minutes === null) {
+      report(
+        'fail',
+        'Успешных тиков ещё не было',
+        `За сутки запусков: ${runsToday}, со сбоем: ${errorsToday}. Смотрите cron_runs.error.`,
+      );
+    } else if (minutes > 30) {
+      report(
+        'fail',
+        `Последний успешный тик ${Math.round(minutes)} мин назад`,
+        'Планировщик молчит или падает. Откройте /admin/reminders и проверьте задание.',
+      );
+    } else {
+      report('ok', `Последний успешный тик ${Math.max(1, Math.round(minutes))} мин назад`);
+    }
+
+    if (errorsToday > 0) {
       report(
         'warn',
-        `${dueNow.length} клиентск(их/ие) напоминаний(я) должны были уйти прямо сейчас`,
-        'Если сообщение не пришло — планировщик не работает (на Vercel нужен cron).',
+        `За сутки тиков со сбоем: ${errorsToday}`,
+        'Текст сбоя — в cron_runs.error и на /admin/reminders.',
       );
     }
+
+    const due = await pool.query<{ count: number }>(
+      `select count(*)::int as count
+         from reminders
+        where status = 'pending' and due_at <= now()`,
+    );
+    const dueCount = due.rows[0]?.count ?? 0;
+
+    if (dueCount > 0) {
+      report(
+        'warn',
+        `${dueCount} напоминаний просрочено и ждут тика`,
+        'Если так дольше 10 минут — планировщик не работает.',
+      );
+    } else {
+      report('ok', 'Просроченных напоминаний нет');
+    }
+
+    const problems = await pool.query<ProblemRow>(
+      `select r.kind, r.status, r.last_error, a.starts_at
+         from reminders r
+         join appointments a on a.id = r.appointment_id
+        where r.status in ('failed', 'skipped')
+          and a.starts_at > now()
+        order by r.due_at
+        limit 10`,
+    );
+
+    if (problems.rows.length > 0) {
+      report(
+        'warn',
+        `Проблемных строк по будущим визитам: ${problems.rows.length}`,
+        problems.rows
+          .map((row) => `${row.kind} · ${row.status} · ${row.last_error ?? '—'}`)
+          .join('\n'),
+      );
+    }
+
+    const upcoming = await pool.query<{ total: number; connected: number }>(
+      `select count(*)::int as total,
+              count(client_chat_id)::int as connected
+         from appointments
+        where cancelled_at is null and starts_at > now()`,
+    );
+    const { total, connected } = upcoming.rows[0] ?? { total: 0, connected: 0 };
+
+    report(
+      connected > 0 ? 'ok' : 'warn',
+      `Записей с привязанным Telegram-клиентом: ${connected} из ${total}`,
+      connected === 0
+        ? 'Ни один клиент не нажал /start — клиентские напоминания отправлять пока некому.'
+        : undefined,
+    );
   } catch (error) {
     report(
       'fail',
@@ -413,6 +463,7 @@ async function checkDatabase(): Promise<void> {
     await pool.end();
   }
 }
+
 
 async function main(): Promise<void> {
   console.log(`Проверка Telegram-уведомлений zaiko.by${WANT_SEND ? ' (с тестовой отправкой)' : ''}`);

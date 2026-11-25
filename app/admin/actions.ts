@@ -15,6 +15,7 @@ import { checkDikidiSlot } from '@/lib/dikidi/availability';
 import { syncDikidiOnLogin } from '@/lib/dikidi/sync';
 import { removeDikidiRecord, sendAppointmentToDikidi } from '@/lib/dikidi/send';
 import { belarusDateKey, toBelarusDate } from '@/lib/dikidi/time';
+import { resetReminder, runDispatch } from '@/lib/notifications/reminders';
 import { withQuery } from '@/lib/url';
 import {
   attemptsLeft,
@@ -489,6 +490,52 @@ export async function claimDikidiAppointment(formData: FormData): Promise<void> 
  * - `dikidi_id` нет — запись создаётся в DIKIDI, id сохраняется в БД (повторная отправка).
  * Перед отправкой проверяется график мастера: вне окна запись остаётся локальной с причиной.
  */
+/**
+ * Ручной тик со страницы «Напоминания». Тот же код, что у внешнего планировщика:
+ * кнопка полезна, когда cron молчит или после починки нужен догоняющий прогон.
+ */
+export async function runRemindersNow(): Promise<void> {
+  await requireUser();
+
+  try {
+    await runDispatch({ source: 'admin' });
+  } catch (error) {
+    console.error(
+      '[admin] ручной тик напоминаний упал:',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
+  revalidatePath('/admin/reminders');
+}
+
+/** Возвращает пропущенное/упавшее напоминание в очередь и сразу прогоняет тик. */
+export async function resendReminder(formData: FormData): Promise<void> {
+  await requireUser();
+
+  const id = String(formData.get('reminderId') ?? '').trim();
+  if (!/^\d{1,20}$/.test(id)) {
+    redirect('/admin/reminders?error=invalid_id');
+  }
+
+  const reset = await resetReminder(id);
+  if (!reset) {
+    redirect('/admin/reminders?error=not_reset');
+  }
+
+  try {
+    await runDispatch({ source: 'admin' });
+  } catch (error) {
+    console.error(
+      '[admin] переотправка напоминания упала:',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
+  revalidatePath('/admin/reminders');
+  redirect('/admin/reminders?resent=1');
+}
+
 export async function updateAppointment(formData: FormData): Promise<void> {
   await requireUser();
 

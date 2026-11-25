@@ -39,6 +39,12 @@ export default async function ProtectedAdminLayout({
               >
                 Порядок услуг
               </Link>
+              <Link
+                href="/admin/reminders"
+                className="text-charcoal hover:text-rose-dark"
+              >
+                Напоминания
+              </Link>
             </nav>
           </div>
 

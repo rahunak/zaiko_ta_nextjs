@@ -84,11 +84,13 @@ alter table appointments add column if not exists cancelled_source text;
 
 alter table appointments add column if not exists updated_at timestamptz;
 
--- Время отправки напоминания в Telegram за 60 минут до записи (null = ещё не отправлено).
+-- Время отправки напоминания в Telegram за 60 минут до записи.
+-- С 2026-11-25 колонка — только история: отправкой управляет таблица reminders,
+-- а флаг больше не пишется (см. блок «Очередь напоминаний» ниже).
 alter table appointments add column if not exists reminder_sent_at timestamptz;
 
 -- Напоминание клиенту в Telegram: неугадываемый токен для deep-link бота,
--- chat_id после /start и отметка об отправке.
+-- chat_id после /start и отметка об отправке (тоже история, см. reminders).
 alter table appointments add column if not exists client_token text;
 alter table appointments add column if not exists client_chat_id text;
 alter table appointments add column if not exists client_reminder_sent_at timestamptz;
@@ -168,3 +170,65 @@ create table if not exists master_schedule_overrides (
 );
 
 create index if not exists master_schedule_overrides_date_idx on master_schedule_overrides (date);
+
+-- Очередь напоминаний. Одна строка = одно будущее сообщение.
+--
+-- Строки создаёт сам тик (/api/cron/dispatch), а не транзакция записи: так перенос времени,
+-- отмена и записи из DIKIDI подхватываются без отдельных хуков в пяти местах кода.
+-- Статусы: pending → claimed → sent | failed | skipped | cancelled.
+create table if not exists reminders (
+  id bigserial primary key,
+  appointment_id bigint not null references appointments (id) on delete cascade,
+  -- master_t60: «через час приём» мастеру; client_t60: напоминание клиенту.
+  kind text not null,
+  due_at timestamptz not null,
+  status text not null default 'pending'
+    check (status in ('pending', 'claimed', 'sent', 'failed', 'skipped', 'cancelled')),
+  attempts integer not null default 0,
+  next_attempt_at timestamptz not null default now(),
+  claimed_at timestamptz,
+  -- id запуска из cron_runs | 'admin' | 'webhook', для диагностики зависших строк.
+  claimed_by text,
+  sent_at timestamptz,
+  telegram_message_id bigint,
+  -- Текст ошибки или причина skip/cancel (no_subscription, visit_passed).
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz,
+  -- Одно напоминание каждого вида на запись: защита от дубля на уровне данных.
+  unique (appointment_id, kind)
+);
+
+-- Тик выбирает только pending и только просроченные — частичный индекс дешевле полного.
+create index if not exists reminders_due_idx on reminders (due_at) where status = 'pending';
+create index if not exists reminders_appointment_idx on reminders (appointment_id);
+
+-- Журнал тиков: по нему админка показывает, что напоминания живы,
+-- и на нём строится алерт «система молчала N часов».
+create table if not exists cron_runs (
+  id bigserial primary key,
+  -- cronjob | qstash | admin | webhook | manual | external
+  source text not null,
+  started_at timestamptz not null default now(),
+  finished_at timestamptz,
+  picked integer not null default 0,
+  sent integer not null default 0,
+  failed integer not null default 0,
+  error text
+);
+
+create index if not exists cron_runs_started_idx on cron_runs (started_at desc);
+
+-- Бэкфилл: напоминания, отправленные до появления очереди, помечаем sent.
+-- Без этого первый тик после деплоя разослал бы их повторно.
+insert into reminders (appointment_id, kind, due_at, status, sent_at)
+select id, 'master_t60', starts_at - interval '60 minutes', 'sent', reminder_sent_at
+  from appointments
+ where reminder_sent_at is not null
+on conflict (appointment_id, kind) do nothing;
+
+insert into reminders (appointment_id, kind, due_at, status, sent_at)
+select id, 'client_t60', starts_at - interval '60 minutes', 'sent', client_reminder_sent_at
+  from appointments
+ where client_reminder_sent_at is not null
+on conflict (appointment_id, kind) do nothing;

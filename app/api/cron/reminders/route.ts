@@ -1,25 +1,10 @@
-import { NextResponse } from 'next/server';
-import { sendDueReminders } from '@/lib/notifications/reminders';
-import { sendClientReminders } from '@/lib/notifications/client-reminders';
+import { handleCronDispatch } from '@/lib/notifications/cron-http';
 
-export async function GET(request: Request): Promise<NextResponse> {
-  const secret = process.env.CRON_SECRET;
+/**
+ * Старый адрес тика. Оставлен рабочим: на него могут быть настроены внешние вызовы
+ * и ссылается документация. Новый адрес — `/api/cron/dispatch`, поведение то же.
+ */
+export const dynamic = 'force-dynamic';
 
-  // Без секрета эндпоинт не должен быть открыт: раньше его мог дёрнуть кто угодно
-  // и разослать напоминания раньше времени. Напоминания в процессе всё равно работают.
-  if (!secret) {
-    return NextResponse.json(
-      { error: 'cron_secret_not_configured' },
-      { status: 503 },
-    );
-  }
-
-  const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
-  const sent = await sendDueReminders();
-  const sentToClients = await sendClientReminders();
-  return NextResponse.json({ sent, sentToClients });
-}
+export const GET = handleCronDispatch;
+export const POST = handleCronDispatch;

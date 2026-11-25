@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { sendTelegramToChat, readEnv } from '@/lib/telegram';
 import {
-  clientReminderText,
   clientReminderLeadText,
   CLIENT_REMINDER_HOURS,
 } from '@/lib/notifications/client-reminders';
+import { ensureReminder, resetReminder, sendReminderNow } from '@/lib/notifications/reminders';
 import { belarusLongDate, belarusTime } from '@/lib/dikidi/time';
 
 /**
@@ -112,27 +112,45 @@ export async function POST(request: Request): Promise<NextResponse> {
   ]);
 
   const startsAt = new Date(appointment.starts_at);
-  const hoursLeft = (startsAt.getTime() - Date.now()) / 3_600_000;
 
-  // Если визит уже близко, отправляем напоминание сразу и отмечаем его,
-  // чтобы планировщик не прислал второе через минуту.
-  if (hoursLeft <= CLIENT_REMINDER_HOURS) {
-    const delivered = await sendTelegramToChat(chat, clientReminderText(appointment));
-    // Отмечаем только при успехе: если Telegram не ответил, напоминание
-    // отправит планировщик на следующем тике.
-    if (delivered) {
-      await query('update appointments set client_reminder_sent_at = now() where id = $1', [
-        appointment.id,
-      ]);
-    }
-    return NextResponse.json({ ok: true, text: delivered ? 'reminder_sent' : 'reminder_pending' });
+  if (startsAt.getTime() <= Date.now()) {
+    return answer('Эта запись уже прошла. Записаться на новое время можно на сайте.');
   }
+
+  // Строку напоминания обычно создаёт тик, но клиент может нажать кнопку раньше
+  // первого тика — тогда создаём её здесь и работаем с ней.
+  const reminder = await ensureReminder(Number(appointment.id), 'client_t60');
+
+  if (!reminder) {
+    return answer('Не получилось включить напоминание. Запишитесь заново или позвоните мастеру.');
+  }
+
+  // Визит ближе срока напоминания: отправляем сразу той же функцией, что и тик,
+  // чтобы не появилось второй точки отправки со своими правилами.
+  if (startsAt.getTime() - CLIENT_REMINDER_HOURS * 3_600_000 <= Date.now()) {
+    await resetReminder(reminder.id, ['pending', 'failed', 'skipped']);
+    const outcome = await sendReminderNow(reminder.id, 'webhook');
+
+    if (outcome === 'sent') {
+      return NextResponse.json({ ok: true, text: 'reminder_sent' });
+    }
+    if (outcome === 'not_claimable') {
+      // Строка уже отправлена (повторный /start) — второй раз не шлём.
+      return NextResponse.json({ ok: true, text: 'already_sent' });
+    }
+    // 5xx/429: строку подхватит следующий тик.
+    return NextResponse.json({ ok: true, text: 'reminder_pending' });
+  }
+
+  // Повторная подписка после блокировки бота: возвращаем строку в работу,
+  // чтобы тик отправил напоминание в срок. Отправленные строки не трогаем.
+  await resetReminder(reminder.id);
 
   return answer(
     [
       'Напоминание включено.',
       `Запись: ${belarusLongDate(startsAt)}, ${belarusTime(startsAt)} — ${appointment.service_name}.`,
-      `Напомню ${clientReminderLeadText()}.`,
+      `Напомню ${clientReminderLeadText()} до визита.`,
     ].join('\n'),
   );
 }

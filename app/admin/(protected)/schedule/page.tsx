@@ -3,7 +3,6 @@ import { query } from '@/lib/db';
 import AutoRefresh from '@/components/AutoRefresh';
 import { fetchDikidiSchedule } from '@/lib/dikidi/source';
 import { syncDikidiEntriesIfNeeded } from '@/lib/dikidi/sync';
-import { sendDueReminders } from '@/lib/notifications/reminders';
 import {
   addDays,
   belarusDateKey,
@@ -162,12 +161,8 @@ export default async function SchedulePage({
     }
   }
 
-  // Отправляем напоминания за 60 минут до записи, если они ещё не ушли.
-  try {
-    await sendDueReminders();
-  } catch {
-    // Напоминания не должны ломать страницу.
-  }
+  // Напоминания отправляет тик (/api/cron/dispatch), а не рендер страницы:
+  // скрытый побочный эффект при открытии расписания удивлял и дублировал cron.
 
   const { rows: localRows } = await query<LocalRow>(
     `select id, source, client_name, client_phone, service_name, starts_at,

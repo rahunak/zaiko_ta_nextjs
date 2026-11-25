@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:init": "bun run scripts/db-init.ts",
+    "db:cron": "bun run scripts/db-cron.ts",
     "api-anything:serve": "bash ../../scripts/api-anything.sh serve --port 8787 --allow-writes",
     "api-anything:login": "bash ../../scripts/api-anything.sh login dikidi.net"
   },

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DateField, TimeField } from '@/components/AdminDateTime';
 import { requireUser } from '@/lib/auth/session';
 import { query } from '@/lib/db';
 import { todayBelarus } from '@/lib/dikidi/time';
@@ -51,6 +52,11 @@ const WEEKDAYS = [
 function timeValue(v: string | null): string {
   if (!v) return '';
   return v.slice(0, 5);
+}
+
+function dateLabel(value: string): string {
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}.${month}.${year}` : value;
 }
 
 export default async function AvailabilityPage({
@@ -121,7 +127,7 @@ export default async function AvailabilityPage({
       ) : null}
 
       {/* Переопределение конкретного дня */}
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
         <h2 className="font-display text-lg">День-исключение</h2>
         <p className="mt-1 text-sm text-muted">
           Выходной, сокращённый день или индивидуальное время работы на конкретную дату.
@@ -132,8 +138,7 @@ export default async function AvailabilityPage({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Дата</span>
-              <input
-                type="date"
+              <DateField
                 name="date"
                 required
                 min={todayBelarus()}
@@ -149,8 +154,7 @@ export default async function AvailabilityPage({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Начало</span>
-              <input
-                type="time"
+              <TimeField
                 name="workStart"
                 defaultValue="10:00"
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -158,8 +162,7 @@ export default async function AvailabilityPage({
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Окончание</span>
-              <input
-                type="time"
+              <TimeField
                 name="workEnd"
                 defaultValue="19:00"
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -167,16 +170,14 @@ export default async function AvailabilityPage({
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Перерыв с</span>
-              <input
-                type="time"
+              <TimeField
                 name="breakStart"
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
               />
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Перерыв до</span>
-              <input
-                type="time"
+              <TimeField
                 name="breakEnd"
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
               />
@@ -196,8 +197,7 @@ export default async function AvailabilityPage({
 
           <button
             type="submit"
-            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-            style={{ backgroundColor: '#B8627A' }}
+            className="min-h-10 w-full rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 sm:w-auto"
           >
             Сохранить день
           </button>
@@ -205,7 +205,7 @@ export default async function AvailabilityPage({
       </section>
 
       {/* Расписание по умолчанию */}
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
         <h2 className="font-display text-lg">Расписание по умолчанию</h2>
         <p className="mt-1 text-sm text-muted">
           Применяется ко всем дням, для которых не задано отдельное переопределение.
@@ -219,7 +219,7 @@ export default async function AvailabilityPage({
 
           <div>
             <span className="mb-1 block text-sm font-medium">Рабочие дни недели</span>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-x-3 gap-y-2">
               {WEEKDAYS.map((wd) => (
                 <label key={wd.v} className="flex items-center gap-1 text-sm">
                   <input
@@ -237,8 +237,7 @@ export default async function AvailabilityPage({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Начало</span>
-              <input
-                type="time"
+              <TimeField
                 name="workStart"
                 defaultValue={timeValue(def.work_start)}
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -246,8 +245,7 @@ export default async function AvailabilityPage({
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Окончание</span>
-              <input
-                type="time"
+              <TimeField
                 name="workEnd"
                 defaultValue={timeValue(def.work_end)}
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -255,8 +253,7 @@ export default async function AvailabilityPage({
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Перерыв с</span>
-              <input
-                type="time"
+              <TimeField
                 name="breakStart"
                 defaultValue={timeValue(def.break_start)}
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -264,8 +261,7 @@ export default async function AvailabilityPage({
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Перерыв до</span>
-              <input
-                type="time"
+              <TimeField
                 name="breakEnd"
                 defaultValue={timeValue(def.break_end)}
                 className="w-full rounded-lg border border-border bg-white px-3 py-2"
@@ -275,8 +271,7 @@ export default async function AvailabilityPage({
 
           <button
             type="submit"
-            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-            style={{ backgroundColor: '#B8627A' }}
+            className="min-h-10 w-full rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 sm:w-auto"
           >
             Сохранить по умолчанию
           </button>
@@ -284,7 +279,7 @@ export default async function AvailabilityPage({
       </section>
 
       {/* Список переопределений */}
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
         <h2 className="font-display text-lg">Переопределённые дни</h2>
         {overrides.length === 0 ? (
           <p className="mt-2 text-sm text-muted">Пока нет ни одного дня-исключения.</p>
@@ -293,7 +288,7 @@ export default async function AvailabilityPage({
             {overrides.map((o) => (
               <li key={o.date} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
-                  <p className="text-sm font-medium">{o.date}</p>
+                  <p className="text-sm font-medium">{dateLabel(o.date)}</p>
                   <p className="text-xs text-muted">
                     {o.is_working
                       ? `${timeValue(o.work_start)}–${timeValue(o.work_end)}${o.break_start && o.break_end
@@ -308,7 +303,7 @@ export default async function AvailabilityPage({
                   <input type="hidden" name="date" value={o.date} />
                   <button
                     type="submit"
-                    className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
+                    className="min-h-9 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
                   >
                     Удалить
                   </button>
@@ -320,7 +315,7 @@ export default async function AvailabilityPage({
       </section>
 
       {/* Глобальный флаг онлайн-записи */}
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
         <h2 className="font-display text-lg">Онлайн-запись (/book)</h2>
         <p className="mt-1 text-sm text-muted">
           Что делать с записями, которые клиенты создают самостоятельно через форму на сайте.
@@ -380,8 +375,7 @@ export default async function AvailabilityPage({
 
           <button
             type="submit"
-            className="rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-            style={{ backgroundColor: '#B8627A' }}
+            className="min-h-10 w-full rounded-lg bg-rose-dark px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 sm:w-auto"
           >
             Сохранить
           </button>

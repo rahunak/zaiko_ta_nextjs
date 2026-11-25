@@ -28,6 +28,72 @@ body {
   font-family: var(--font-playfair), serif;
 }
 
+/* Админка: та же палитра, но контрастнее. Белые карточки должны читаться
+   на кремовом фоне, а мелкий текст — проходить по контрасту.
+   Переопределяем токены только внутри .admin-shell, сайт не затрагивается. */
+.admin-shell {
+  --color-cream: #F4ECE6;
+  --color-muted: #6B5D5B;
+  --color-border: #D6C0BC;
+  --color-rose: #A5576F;
+  --color-rose-light: #F4E1E7;
+  --color-rose-dark: #7C3F56;
+}
+
+.admin-shell :focus-visible {
+  outline: 2px solid var(--color-rose-dark);
+  outline-offset: 2px;
+}
+
+/* Кнопки админки: пудровая граница вместо почти белой, мягкая тень и
+   светлый внутренний блик — чтобы вторичные действия читались на белом. */
+.admin-shell :is(button, a)[class*='border-border'] {
+  border-color: #D9B9C2;
+  box-shadow:
+    0 1px 2px rgba(26, 22, 24, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.admin-shell :is(button, a)[class*='border-border']:not(:disabled):hover {
+  border-color: var(--color-rose);
+}
+
+/* Главные действия: тёмная роза, тонкая рамка и едва заметный градиент. */
+.admin-shell button[type='submit']:not([class*='border']),
+.admin-shell a[class*='bg-rose'][class*='rounded-lg'] {
+  border: 1px solid #8E3F59;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.04));
+  box-shadow:
+    0 1px 2px rgba(26, 22, 24, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Поля ввода: та же тёплая рамка и лёгкая внутренняя тень. */
+.admin-shell input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+.admin-shell textarea,
+.admin-shell select {
+  border-color: #D9C3C7;
+  box-shadow: inset 0 1px 2px rgba(26, 22, 24, 0.04);
+}
+
+/* iOS Safari зумит страницу при фокусе, если в поле меньше 16 px.
+   На телефоне увеличиваем только текст полей, вёрстка не меняется. */
+@media (max-width: 640px) {
+  .admin-shell input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+  .admin-shell textarea,
+  .admin-shell select {
+    font-size: 16px;
+  }
+}
+
+/* Карточки-разделы: белое на кремовом должно отделяться не только рамкой. */
+.admin-shell main section,
+.admin-shell main > div > form {
+  box-shadow:
+    0 1px 2px rgba(26, 22, 24, 0.05),
+    0 18px 36px -30px rgba(26, 22, 24, 0.45);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

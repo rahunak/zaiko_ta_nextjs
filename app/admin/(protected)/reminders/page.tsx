@@ -66,10 +66,10 @@ export default async function RemindersPage({
             Очередь в базе: тик создаёт и отправляет напоминания, планировщик только будит тик.
           </p>
         </div>
-        <form action={runRemindersNow}>
+        <form action={runRemindersNow} className="w-full sm:w-auto">
           <button
             type="submit"
-            className="rounded-lg border border-border px-4 py-2 text-sm transition hover:border-rose hover:text-rose-dark"
+            className="min-h-10 w-full rounded-lg border border-border px-4 py-2 text-sm transition hover:border-rose hover:text-rose-dark sm:w-auto"
           >
             Прогнать сейчас
           </button>
@@ -89,7 +89,7 @@ export default async function RemindersPage({
         </p>
       ) : null}
 
-      <section className="rounded-2xl border border-border bg-white p-6">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-display text-lg">Состояние</h2>
           <span
@@ -138,7 +138,7 @@ export default async function RemindersPage({
         </p>
       </section>
 
-      <section className="rounded-2xl border border-border bg-white p-6">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <h2 className="font-display text-lg">Требуют внимания</h2>
         <p className="mt-1 text-xs text-muted">
           Ошибки отправки и пропуски по будущим визитам. «Переотправить» вернёт строку в очередь и
@@ -148,7 +148,7 @@ export default async function RemindersPage({
         {overview.problems.length === 0 ? (
           <p className="mt-4 text-sm text-muted">Проблем нет.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -190,7 +190,7 @@ export default async function RemindersPage({
                         <input type="hidden" name="reminderId" value={row.id} />
                         <button
                           type="submit"
-                          className="rounded-lg border border-border px-3 py-1.5 text-xs transition hover:border-rose hover:text-rose-dark"
+                          className="rounded-lg border border-border bg-cream/40 px-3 py-1.5 text-xs transition hover:border-rose hover:bg-cream hover:text-rose-dark"
                         >
                           Переотправить
                         </button>
@@ -202,17 +202,57 @@ export default async function RemindersPage({
             </table>
           </div>
         )}
+
+        {overview.problems.length === 0 ? null : (
+          <ul className="mt-4 space-y-2 md:hidden">
+            {overview.problems.map((row) => (
+              <li key={`mobile-${row.id}`} className="rounded-xl border border-border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{row.client_name}</p>
+                    <p className="text-xs text-muted">{row.service_name}</p>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-xs"
+                    style={
+                      row.status === 'failed'
+                        ? { backgroundColor: '#f7e2e2', color: '#9c2f2f' }
+                        : { backgroundColor: '#f4efe2', color: '#7a5a16' }
+                    }
+                  >
+                    {statusLabel(row.status)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  {formatMoment(row.starts_at)} · {kindLabel(row.kind)} · попыток: {row.attempts}
+                </p>
+                {row.last_error ? (
+                  <p className="mt-1 break-words text-xs text-muted">{row.last_error}</p>
+                ) : null}
+                <form action={resendReminder} className="mt-2">
+                  <input type="hidden" name="reminderId" value={row.id} />
+                  <button
+                    type="submit"
+                    className="min-h-10 w-full rounded-lg border border-border px-3 py-1.5 text-xs transition hover:border-rose hover:text-rose-dark"
+                  >
+                    Переотправить
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
-      <section className="rounded-2xl border border-border bg-white p-6">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <h2 className="font-display text-lg">Ближайшие напоминания</h2>
         {overview.upcoming.length === 0 ? (
           <p className="mt-3 text-sm text-muted">Пока нечего отправлять.</p>
         ) : (
           <ul className="mt-3 divide-y divide-border/60 text-sm">
             {overview.upcoming.map((row) => (
-              <li key={row.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
-                <span className="text-charcoal">
+              <li key={row.id} className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 py-2">
+                <span className="min-w-0 break-words text-charcoal">
                   {formatMoment(row.due_at)}
                   <span className="ml-2 text-xs text-muted">
                     {kindLabel(row.kind)} · визит {formatMoment(row.starts_at)}
@@ -227,12 +267,12 @@ export default async function RemindersPage({
         )}
       </section>
 
-      <section className="rounded-2xl border border-border bg-white p-6">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <h2 className="font-display text-lg">Журнал тиков</h2>
         {overview.runs.length === 0 ? (
           <p className="mt-3 text-sm text-muted">Тиков не было.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -258,6 +298,25 @@ export default async function RemindersPage({
               </tbody>
             </table>
           </div>
+        )}
+
+        {overview.runs.length === 0 ? null : (
+          <ul className="mt-3 space-y-2 md:hidden">
+            {overview.runs.map((run) => (
+              <li key={`mobile-run-${run.id}`} className="rounded-xl border border-border p-3 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium">{run.source}</span>
+                  <span className="text-xs text-muted">{formatMoment(run.started_at)}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  забрано {run.picked} · отправлено {run.sent} · ошибок {run.failed}
+                </p>
+                {run.error ? (
+                  <p className="mt-1 break-words text-xs text-gold">{run.error}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

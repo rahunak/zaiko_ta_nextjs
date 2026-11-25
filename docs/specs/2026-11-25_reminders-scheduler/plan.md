@@ -1,7 +1,7 @@
 # ПЛАН реализации (SDD): надёжные напоминания без cron внутри Vercel
 
 **Проект:** `zaiko_ta/zaiko_ta_nextjs` · **Дата:** 2026-11-25 · **Тир:** T3 (схема + архитектура)
-**Статус:** ✅ этапы 0–7 выполнены 2026-11-25; этап 8 — за владельцем (скрипт pg_cron готов)
+**Статус:** ✅ этапы 0–7 выполнены 2026-11-25; этап 8 — cron-job.org и pg_cron включены, остались QStash и живой сценарий
 **Спека:** [`spec.md`](./spec.md) · **ADR:** [`adr.md`](./adr.md)
 **Правило:** один этап — один маленький дифф; переход к следующему только после зелёной проверки.
 Стоп-кран (scope creep / новый риск / блокер) → остановка и вопрос владельцу.
@@ -234,8 +234,8 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/api/cron/dispatch   # 40
       `Authorization: Bearer <CRON_SECRET>`, включить e-mail-уведомления
 - [ ] QStash: расписание `*/15 * * * *` на тот же URL, заголовок
       `Upstash-Forward-Authorization: Bearer <CRON_SECRET>`
-- [x] pg_cron+pg_net: скрипт `scripts/db-cron.ts` (`bun run db:cron`) — написан и проверен в `--dry-run`;
-      [ ] запустить на Supabase с direct-URL
+- [x] pg_cron+pg_net: `bun run db:cron` через session pooler (:5432) — задание `zaiko-reminders-pgnet`
+      (jobid 1) активно, первый тик в 18:30 отдал 200 (direct-URL не подключается: IPv6)
 - [ ] Через 15 минут: `/admin/reminders` показывает свежий тик и несколько источников
 
 **Проверка:** «последний тик» моложе 10 минут; в журнале несколько источников; `cron.job`
@@ -276,6 +276,6 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/api/cron/dispatch   # 40
 | 5 | 2026-11-25 | ✅ | фейковые апдейты `/start`: подтверждение / `reminder_sent` / `already_sent`, одна строка | — |
 | 6 | 2026-11-25 | ✅ | рендер под реальной сессией: HTTP 200, счётчики, проблемы, журнал | — |
 | 7 | 2026-11-25 | ✅ | `tsc` → 0, `telegram-check` с новой секцией очереди | — |
-| 8 | — | ⏳ | скрипт `db:cron` готов, проверен `--dry-run`; задания на Supabase ещё нет | нужны аккаунты cron-job.org/QStash и direct-URL Supabase |
+| 8 | 2026-11-25 | ✅ (частично) | cron-job.org тикает, pg_cron создан (jobid 1, 200); QStash не проверен | осталось подтвердить QStash и живой клиентский сценарий |
 
 **План готов. Начинаем с этапа 0 или правим scope (например, только cron-job.org без QStash)?**

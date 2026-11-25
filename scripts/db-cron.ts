@@ -9,7 +9,7 @@
  *
  * Скрипт идемпотентен: пересоздаёт одно задание с тем же именем.
  *
- * Запуск (нужен direct-URL Supabase, не pooler):
+ * Запуск (direct-URL, а если он недоступен по IPv6 — session pooler на 5432):
  *   DATABASE_URL="postgres://postgres:<пароль>@db.<ref>.supabase.co:5432/postgres" \
  *   CRON_SECRET="<секрет>" bun run db:cron
  *
@@ -93,9 +93,13 @@ async function main(): Promise<void> {
   }
 
   if (databaseUrl.includes('pooler.supabase.com')) {
+    const transactionMode = databaseUrl.includes(':6543');
     console.warn(
-      '! DATABASE_URL указывает на pooler. Расширения ставятся через direct-URL ' +
-        '(db.<ref>.supabase.co:5432) или через Dashboard → Database → Extensions.',
+      transactionMode
+        ? '! Это transaction pooler (:6543) — DDL и задания cron через него могут не создаться. ' +
+            'Возьмите session pooler (:5432) или direct-URL (db.<ref>.supabase.co:5432).'
+        : '! Это session pooler (:5432): расширения и задания cron через него создаются. ' +
+            'Если direct-URL недоступен по IPv6 (ECONNREFUSED на 2a05:…) — это нормальный рабочий вариант.',
     );
   }
 

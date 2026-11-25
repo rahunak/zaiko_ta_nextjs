@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { DateField, TimeField } from '@/components/AdminDateTime';
 import { query } from '@/lib/db';
 import { belarusDateKey, belarusTime } from '@/lib/dikidi/time';
 import { cancelAppointment, updateAppointment } from '../../../actions';
@@ -102,7 +103,7 @@ export default async function EditAppointmentPage({
         </div>
         <Link
           href="/admin/new"
-          className="rounded-lg border border-border px-4 py-2 text-sm transition hover:border-rose hover:text-rose-dark"
+          className="min-h-10 w-full rounded-lg border border-border px-4 py-2 text-center text-sm transition hover:border-rose hover:text-rose-dark sm:w-auto"
         >
           ← К записям
         </Link>
@@ -129,7 +130,7 @@ export default async function EditAppointmentPage({
         </p>
       ) : null}
 
-      <form action={updateAppointment} className="rounded-2xl border border-border bg-white p-6">
+      <form action={updateAppointment} className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <input type="hidden" name="appointmentId" value={appointment.id} />
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -176,12 +177,11 @@ export default async function EditAppointmentPage({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="mb-1 block text-muted">Дата</span>
-              <input
+              <DateField
                 name="date"
-                type="date"
                 required
                 defaultValue={belarusDateKey(startsAt)}
                 className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-rose"
@@ -190,11 +190,9 @@ export default async function EditAppointmentPage({
 
             <label className="block text-sm">
               <span className="mb-1 block text-muted">Время</span>
-              <input
+              <TimeField
                 name="time"
-                type="time"
                 required
-                step={300}
                 defaultValue={belarusTime(startsAt)}
                 className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-rose"
               />
@@ -231,23 +229,23 @@ export default async function EditAppointmentPage({
           </span>
         </label>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button
             type="submit"
-            className="rounded-lg bg-rose px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-dark"
+            className="min-h-11 w-full rounded-lg bg-rose px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-dark sm:w-auto"
           >
             Сохранить изменения
           </button>
           <Link
             href="/admin/new"
-            className="rounded-lg border border-border px-5 py-2.5 text-sm transition hover:border-rose hover:text-rose-dark"
+            className="flex min-h-11 w-full items-center justify-center rounded-lg border border-border bg-cream/40 px-5 py-2.5 text-sm transition hover:border-rose hover:bg-cream hover:text-rose-dark sm:w-auto"
           >
             Отмена
           </Link>
         </div>
       </form>
 
-      <section className="rounded-2xl border border-border bg-white p-6">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
         <h2 className="font-display text-lg">Отмена записи</h2>
         <p className="mt-1 text-sm text-muted">
           Отменённая запись убирается из расписания и списков, но остаётся в БД.
@@ -260,7 +258,7 @@ export default async function EditAppointmentPage({
           <input type="hidden" name="backTo" value="/admin/new" />
           <button
             type="submit"
-            className="rounded-lg border border-border px-5 py-2.5 text-sm text-muted transition hover:border-rose hover:text-rose-dark"
+            className="min-h-11 w-full rounded-lg border border-border bg-cream/40 px-5 py-2.5 text-sm text-muted transition hover:border-rose hover:bg-cream hover:text-rose-dark sm:w-auto"
           >
             Отменить запись
           </button>

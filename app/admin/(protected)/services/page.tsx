@@ -26,7 +26,7 @@ export default async function AdminServicesPage() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
         <ol className="divide-y divide-border">
           {services.map((service, index) => (
             <li
@@ -37,7 +37,7 @@ export default async function AdminServicesPage() {
             >
               <span className="w-6 shrink-0 text-sm tabular-nums text-muted">{index + 1}</span>
 
-              <span className="min-w-0 flex-1 text-sm">
+              <span className="min-w-0 flex-1 break-words text-sm">
                 <span className="block text-charcoal">{service.name}</span>
                 <span className="block text-xs text-muted">
                   {Number(service.price)} BYN · {service.duration_min} мин
@@ -65,7 +65,7 @@ export default async function AdminServicesPage() {
                       disabled={button.disabled}
                       aria-label={`${button.label}: ${service.name}`}
                       title={button.label}
-                      className="h-8 w-8 rounded-lg border border-border text-sm transition enabled:hover:border-rose enabled:hover:text-rose-dark disabled:opacity-30"
+                      className="h-10 w-10 rounded-lg border border-border bg-cream/40 text-sm transition enabled:hover:border-rose enabled:hover:bg-cream enabled:hover:text-rose-dark disabled:opacity-30 sm:h-8 sm:w-8"
                     >
                       {button.glyph}
                     </button>

@@ -1,5 +1,6 @@
 'use server';
 
+import { after } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -67,12 +68,14 @@ export async function loginAction(formData: FormData): Promise<void> {
   resetAttempts(key);
   await createSession(Number(user.id));
 
-  // Подтягиваем записи DIKIDI в БД на этапе входа, чтобы мастер видел актуальное расписание.
-  try {
-    await syncDikidiOnLogin();
-  } catch {
-    // Вход не должен падать из-за синхронизации.
-  }
+  // Синхронизация DIKIDI больше не задерживает вход: она выполняется после ответа.
+  after(async () => {
+    try {
+      await syncDikidiOnLogin();
+    } catch {
+      // Вход не должен падать из-за синхронизации.
+    }
+  });
 
   redirect('/admin/schedule');
 }

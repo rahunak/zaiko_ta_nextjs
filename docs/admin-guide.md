@@ -164,6 +164,12 @@ curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_bot>/setWebhook?url=https
 - Заголовок: `Upstash-Forward-Authorization: Bearer <CRON_SECRET>` (QStash передаёт только
   заголовки с префиксом `Upstash-Forward-`).
 
+Токен `QSTASH_TOKEN` создаётся автоматически вместе с QStash и лежит в консоли:
+вкладка **QStash → Quickstart**. Для расписания через дашборд он не нужен — дашборд уже
+авторизован; токен нужен только для API/SDK/CLI. Не путать его с `CRON_SECRET`: в
+`Upstash-Forward-Authorization` идёт секрет сайта, иначе эндпоинт ответит `401`.
+Первый запуск расписания может появиться не сразу — до 60 секунд.
+
 Оба планировщика могут работать одновременно: строки захватываются через
 `for update skip locked`, поэтому каждое напоминание уходит один раз.
 
@@ -173,11 +179,15 @@ curl "https://api.telegram.org/bot<ТОКЕН zaiko_ta_bot>/setWebhook?url=https
 серии ошибок, у QStash кончилась квота или аккаунт заблокирован. Живёт в самой базе,
 внешних аккаунтов не требует.
 
-Настройка одной командой (нужен **direct-URL** Supabase, не pooler; расширения можно
-включить и в Dashboard → Database → Extensions, но скрипт делает это сам):
+Настройка одной командой. Нужен **direct-URL** Supabase; если он не подключается
+(`ECONNREFUSED` на адресе `2a05:…` — direct-хост только IPv6, а в сети нет IPv6), берите
+**session pooler** `...pooler.supabase.com:5432`: DDL и задания cron через него создаются.
+Transaction pooler `:6543` не подходит. Расширения можно включить и в Dashboard →
+Database → Extensions, но скрипт делает это сам:
 
 ```bash
-DATABASE_URL="postgres://postgres:<пароль>@db.<ref>.supabase.co:5432/postgres" \
+# direct-URL или session pooler (:5432)
+DATABASE_URL="postgres://postgres.<ref>:<пароль>@aws-1-<region>.pooler.supabase.com:5432/postgres" \
 CRON_SECRET="<CRON_SECRET>" bun run db:cron
 ```
 

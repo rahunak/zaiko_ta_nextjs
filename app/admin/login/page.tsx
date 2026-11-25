@@ -24,7 +24,7 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs uppercase tracking-[0.2em] text-muted">Зайко Татьяна</p>
         <h1 className="mt-2 font-display text-2xl">Служебный вход</h1>
         <p className="mt-2 text-sm text-muted">

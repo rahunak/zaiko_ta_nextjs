@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DateField } from '@/components/AdminDateTime';
 import { query } from '@/lib/db';
 import AutoRefresh from '@/components/AutoRefresh';
 import { fetchDikidiSchedule } from '@/lib/dikidi/source';
@@ -149,7 +150,22 @@ export default async function SchedulePage({
   // Запрашиваем только видимый диапазон: при широком окне DIKIDI возвращает
   // усечённые записи (без имени клиента/услуг). Видимый диапазон обычно содержит
   // не более ~10-15 записей, для которых DIKIDI отдаёт полные данные.
-  const dikidiResult = await fetchDikidiSchedule(from, to);
+  // Записи админки и журнал DIKIDI не зависят друг от друга — запрашиваем параллельно.
+  // Напоминания отправляет тик (/api/cron/dispatch), а не рендер страницы:
+  // скрытый побочный эффект при открытии расписания удивлял и дублировал cron.
+  const [dikidiResult, { rows: localRows }] = await Promise.all([
+    fetchDikidiSchedule(from, to),
+    query<LocalRow>(
+      `select id, source, client_name, client_phone, service_name, starts_at,
+              duration_min, price, comment, sync_status, sync_error, dikidi_id
+         from appointments
+        where source in ('admin', 'online')
+          and cancelled_at is null
+          and starts_at >= $1 and starts_at < $2
+        order by starts_at`,
+      [rangeStart!, rangeEnd!],
+    ),
+  ]);
 
   // Зеркалим записи из DIKIDI в БД, чтобы они не терялись при отказе от DIKIDI
   // и были доступны как обычные записи админки (связь по dikidi_id).
@@ -160,20 +176,6 @@ export default async function SchedulePage({
       // Синхронизация не должна ломать отображение расписания.
     }
   }
-
-  // Напоминания отправляет тик (/api/cron/dispatch), а не рендер страницы:
-  // скрытый побочный эффект при открытии расписания удивлял и дублировал cron.
-
-  const { rows: localRows } = await query<LocalRow>(
-    `select id, source, client_name, client_phone, service_name, starts_at,
-            duration_min, price, comment, sync_status, sync_error, dikidi_id
-       from appointments
-      where source in ('admin', 'online')
-        and cancelled_at is null
-        and starts_at >= $1 and starts_at < $2
-      order by starts_at`,
-    [rangeStart!, rangeEnd!],
-  );
 
   const local = localEntries(localRows);
   const dikidiEntries = dikidiResult.ok
@@ -258,23 +260,22 @@ export default async function SchedulePage({
           </Link>
         </div>
 
-        <form method="get" className="flex items-center gap-2">
+        <form method="get" className="flex w-full items-center gap-2 sm:w-auto">
           <input type="hidden" name="range" value={range} />
-          <input
-            type="date"
+          <DateField
             name="date"
             defaultValue={dateKey}
-            className="rounded-lg border border-border bg-white px-3 py-1.5"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-white px-3 py-1.5 sm:flex-none"
           />
           <button
             type="submit"
-            className="rounded-lg border border-border bg-white px-3 py-1.5 hover:border-rose"
+            className="min-h-10 shrink-0 rounded-lg border border-border bg-white px-3 py-1.5 hover:border-rose"
           >
             Показать
           </button>
         </form>
 
-        <span className="text-muted">
+        <span className="text-xs text-muted sm:text-sm">
           Всего: {merged.length} · DIKIDI: {dikidiCount} · админка: {adminCount} ·{' '}
           {Math.round(totalAmount)} BYN
         </span>
@@ -323,7 +324,7 @@ export default async function SchedulePage({
       {days.map((day) => (
         <section
           key={day.dateKey}
-          className="overflow-hidden rounded-2xl border border-border bg-white"
+          className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm"
         >
           <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-cream px-4 py-2.5">
             <h2 className="font-display text-base">
@@ -346,17 +347,18 @@ export default async function SchedulePage({
                 const badge = sourceBadge(entry);
 
                 return (
-                  <li key={entry.key} className="flex flex-wrap items-start gap-3 px-4 py-3">
-                    <div className="w-24 shrink-0 text-sm font-medium whitespace-nowrap">
+                  <li key={entry.key} className="px-4 py-3">
+                    <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                    <div className="w-20 shrink-0 text-sm font-medium whitespace-nowrap sm:w-24">
                       {entry.timeFrom}
                       {entry.timeTo ? `–${entry.timeTo}` : ''}
                     </div>
 
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 break-words">
                       <p className="text-sm font-medium">
                         {entry.clientName}
                         {entry.clientPhone ? (
-                          <span className="ml-2 font-normal text-muted">
+                          <span className="block font-normal text-muted sm:ml-2 sm:inline">
                             {entry.clientPhone}
                           </span>
                         ) : null}
@@ -370,9 +372,9 @@ export default async function SchedulePage({
                       ) : null}
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto sm:justify-end">
                       {entry.price > 0 ? (
-                        <span className="whitespace-nowrap">{entry.price} BYN</span>
+                        <span className="whitespace-nowrap font-medium">{entry.price} BYN</span>
                       ) : null}
                       <span
                         title={entry.syncError ?? undefined}
@@ -385,11 +387,14 @@ export default async function SchedulePage({
                         <>
                           <Link
                             href={`/admin/appointments/${entry.key.replace('admin:', '')}`}
-                            className="rounded-lg border border-border px-2 py-0.5 text-xs transition hover:border-rose hover:text-rose-dark"
+                            className="flex min-h-9 flex-1 basis-[calc(50%-0.25rem)] items-center justify-center rounded-lg border border-border bg-cream/40 px-3 py-1.5 text-xs transition hover:border-rose hover:bg-cream hover:text-rose-dark sm:flex-none sm:basis-auto"
                           >
                             Изменить
                           </Link>
-                          <form action={cancelAppointment}>
+                          <form
+                            action={cancelAppointment}
+                            className="flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto"
+                          >
                             <input
                               type="hidden"
                               name="appointmentId"
@@ -398,7 +403,7 @@ export default async function SchedulePage({
                             <input type="hidden" name="backTo" value={backTo} />
                             <button
                               type="submit"
-                              className="rounded-lg border border-border px-2 py-0.5 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
+                              className="min-h-9 w-full rounded-lg border border-border bg-cream/40 px-3 py-1.5 text-xs text-muted transition hover:border-rose hover:bg-cream hover:text-rose-dark"
                             >
                               Отменить
                             </button>
@@ -406,7 +411,10 @@ export default async function SchedulePage({
                         </>
                       ) : entry.dikidiId ? (
                         <>
-                          <form action={claimDikidiAppointment}>
+                          <form
+                            action={claimDikidiAppointment}
+                            className="flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto"
+                          >
                             <input type="hidden" name="dikidiId" value={entry.dikidiId} />
                             <input type="hidden" name="clientName" value={entry.clientName} />
                             <input type="hidden" name="clientPhone" value={entry.clientPhone} />
@@ -427,24 +435,28 @@ export default async function SchedulePage({
                             <button
                               type="submit"
                               title="Открыть форму правки. Запись свяжется с DIKIDI, и сохранение обновит её там же, без дубля."
-                              className="rounded-lg border border-border px-2 py-0.5 text-xs transition hover:border-rose hover:text-rose-dark"
+                              className="min-h-9 w-full rounded-lg border border-border bg-cream/40 px-3 py-1.5 text-xs transition hover:border-rose hover:bg-cream hover:text-rose-dark"
                             >
                               Изменить
                             </button>
                           </form>
-                          <form action={cancelDikidiAppointment}>
+                          <form
+                            action={cancelDikidiAppointment}
+                            className="flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto"
+                          >
                             <input type="hidden" name="dikidiId" value={entry.dikidiId} />
                             <input type="hidden" name="backTo" value={backTo} />
                             <button
                               type="submit"
                               title="Удалить запись в DIKIDI — отменить её как это делает мастер в кабинете."
-                              className="rounded-lg border border-border px-2 py-0.5 text-xs text-muted transition hover:border-rose hover:text-rose-dark"
+                              className="min-h-9 w-full rounded-lg border border-border bg-cream/40 px-3 py-1.5 text-xs text-muted transition hover:border-rose hover:bg-cream hover:text-rose-dark"
                             >
                               Отменить
                             </button>
                           </form>
                         </>
                       ) : null}
+                    </div>
                     </div>
                   </li>
                 );

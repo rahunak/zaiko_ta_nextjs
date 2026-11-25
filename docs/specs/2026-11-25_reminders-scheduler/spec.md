@@ -228,7 +228,7 @@ Telegram Bot API (мастеру — админский бот, клиенту �
 | 10 | сделано | `/admin/reminders` под реальной сессией: HTTP 200, счётчики (pending 1 / sent 3), последний тик, «Требуют внимания», «Переотправить», журнал |
 | 11 | сделано | `npx tsc --noEmit` → 0; `bun run build` → 0, в маршрутах `/admin/reminders`, `/api/cron/dispatch`; `grep` по `startReminderScheduler` пуст |
 | 12 | сделано | `db/schema.sql` применён дважды без ошибок; бэкфилл создаёт `sent` из заполненных старых флагов, повторной рассылки нет (строки не `pending`) |
-| 13 | сделано локально | `--dry-run` печатает команду с скрытым секретом и не трогает БД; на локальном Postgres без расширений — exit 2 с объяснением. Само задание на Supabase ещё не создано |
+| 13 | сделано | Задание `zaiko-reminders-pgnet` (jobid 1, `active`) создано через session pooler :5432; `job_run_details` — `succeeded`, `net._http_response` — 200, в `cron_runs` источник `pg_cron` (18:30). `--dry-run` не меняет БД; база без расширений — exit 2. Замечание: direct-хост `db.<ref>.supabase.co` не подключается по IPv6 в этой сети — рабочий вариант session pooler |
 
 ### Отклонения от первоначального плана
 
@@ -254,7 +254,7 @@ Telegram Bot API (мастеру — админский бот, клиенту �
 | 2 | Задеплоить код | владелец | `/admin/reminders` открывается, в статусе — «успешного тика ещё не было» |
 | 3 | cron-job.org: `GET https://zaiko.by/api/cron/dispatch?source=cronjob`, каждые 5 минут, заголовок `Authorization: Bearer <CRON_SECRET>`, включить e-mail о сбоях | владелец | через 10 минут: «последний успешный тик» моложе 10 минут, в журнале источник `cronjob` |
 | 4 | QStash: расписание `*/15 * * * *`, заголовок `Upstash-Forward-Authorization: Bearer <CRON_SECRET>` (по желанию) | владелец | в журнале появляется второй источник |
-| 5 | pg_cron: `DATABASE_URL="<direct>" CRON_SECRET="<...>" bun run db:cron` | владелец или агент | `select jobname, active from cron.job` — задание `zaiko-reminders-pgnet` активно; через 10 минут в журнале источник `pg_cron`; `net._http_response` содержит 200 |
+| 5 | pg_cron: `DATABASE_URL="<direct или session pooler :5432>" CRON_SECRET="<...>" bun run db:cron` | владелец или агент | `select jobname, active from cron.job` — задание `zaiko-reminders-pgnet` активно; через 10 минут в журнале источник `pg_cron`; `net._http_response` содержит 200 |
 | 6 | Снять вебхук с **админского** бота (`deleteWebhook`) — на 2026-11-25 он там стоит | владелец | `getWebhookInfo` без URL |
 | 7 | Живой сценарий: запись на +2 ч, кнопка в Telegram, `/start` | владелец | одно напоминание примерно за час, строка `sent` в админке |
 
